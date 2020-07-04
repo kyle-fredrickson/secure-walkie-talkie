@@ -1,0 +1,114 @@
+This documents Bob exchanging a key with Alice, computing the shared secrets,
+and encrypting a message. The interop.json file contains test vectors.
+
+Step 1:
+	Choose a random 256 bit number.
+	name: key
+
+Step 2:
+	Compute the ToD since the Unix epoch.
+	name: ToD
+Step 3:
+	Package the key and time of day into JSON and convert it to a string.
+	name: sess_key_str
+Step 4:
+	Convert sess_key_str into a number.
+	name: sess_key_num
+
+    check: string-to-num(sess_key_str) == sess_key_num
+Step 5:
+	Encrypt sess_key_num using Alice's RSA key, alice_rsa_n, alice_rsa_e
+	name: enc_sess_num
+
+    check: rsa-encrypt-for-alice(enc_sess_num) == enc_sess_num
+Step 6:
+	Convert sess_key_str to bytes, take the sha3-256 hash of it, and convert the hex into an int.
+	name: hash_sess_key
+
+    check: int(hash(to-bytes(sess_key_str))) == hash_sess_key
+Step 7:
+	Choose a diffie public key
+	names:
+        bob_diffie_pri
+	    bob_diffie_pub
+	    alice_diffie_pri
+	    alice_diffie_pub
+
+Step 8:
+    Package bob_diffie_pub and hash_sess_key into a json string.
+
+    name: agree_str
+
+Step 9:
+    Hash the bytes of agree_str, and convert it to an integer.
+
+    name: hash_agree
+    check: int(hash(agree_str)) == hash_agree
+
+Step 10:
+    Use Bob's private RSA key to sign hash_agree.
+
+    name: signature
+    check: rsa-decrypt-bob(hash_agree) == signature
+
+Step 11:
+    Package agreement data and the signature into payload_str
+
+    name: payload_str
+
+Step 12:
+    Encrypt payload_str with simon counter mode using the key and ToD.
+
+    name: enc_payload
+
+Step 13:
+    Convert enc_payload to a string, by decoding the bytes using utf-8 and
+    encoding the string using base64
+
+    name: enc_payload_str
+    check: base64(uft8(enc_payload)) == enc_payload_str
+
+Step 14:
+    Package enc_payload_str and enc_sess_key into a json string.
+
+    name: dhke_str
+
+Step 15:
+    Compute the appropriate header and convert the entire message to bytes.
+
+Step 16:
+    Compute the shared secret
+
+    name: dh_shared_secret
+
+Step 17:
+    Convert the shared secret to bytes.
+
+    name: dh_shared_secret_bytes
+
+Step 18:
+    Hash dh_shared_secret_bytes.
+
+    name: hash_dh_shared_secret
+
+Step 19:
+    Compute seperate keys based on the message.
+
+    name:
+        m1 = ([1] + bytes(hash_dh_shared_secret))
+        m2 = ([2] + bytes(hash_dh_shared_secret))
+        key_1 = hash(m1)
+        key_2 = hash(m2)
+
+    check: transformation from m1,2 to key_1,2
+
+Step 20:
+    Compute header.
+
+Step 21:
+    Package header into json tag.
+
+    name: tag
+
+Step 22:
+    Encrypt message.

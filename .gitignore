@@ -1,0 +1,11 @@
+# Apple Stuff
+.DS_STORE
+
+# Python
+*/__pycache__
+*.pyc
+
+# Audio Files
+*.wav
+*.mp3
+*.m4a
