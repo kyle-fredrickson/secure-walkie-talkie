@@ -146,7 +146,7 @@ void SHA3::squeeze(std::vector<u8>& digest) {
     digest[i] = state.bytes[i];
   }
 
-  for (int i = 0; i < 64; i += 1) {
+  for (int i = 0; i < 25; i += 1) {
     state.words[i] = 0;
   }
 
