@@ -166,14 +166,14 @@ int main(int argc, char **argv) {
     server.recv_request(m1);
     LOG("Received packet 1");
 
-    BigInt m1c = BigInt(m1["payload"].get<std::string>().c_str());
-    BigInt ses1 = BigInt(m1["sess_key"].get<std::string>().c_str());
+    BigInt m1c = BigInt::from_base64(m1["payload"].get<std::string>());
+    BigInt ses1 = BigInt::from_base64(m1["sess_key"].get<std::string>());
 
     BigInt m1a_bigint = bob.decrypt(ses1);
 
     JSON m1a = JSON::parse(BigInt::to_string(m1a_bigint));
 
-    BigInt sa = BigInt(m1a["key"].get<std::string>().c_str());
+    BigInt sa = BigInt::from_base64(m1a["key"].get<std::string>());
     u64 tod = m1a["tod"].get<u64>();
 
     std::vector<u8> ct2 = BigInt::to_bytes(m1c);
@@ -186,7 +186,7 @@ int main(int argc, char **argv) {
     JSON something2 = JSON::parse(BigInt::to_string(something2_bigint));
 
     JSON m1b = something2["agreement_data"].get<JSON>();
-    BigInt sig1 = BigInt(something2["signature"].get<std::string>().c_str());
+    BigInt sig1 = BigInt::from_base64(something2["signature"].get<std::string>());
 
     BigInt m1b_bigint = BigInt::from_string(m1b.dump());
 
@@ -211,8 +211,8 @@ int main(int argc, char **argv) {
 
     CHECK(verified, "Error: unknown being.");
 
-    BigInt h = BigInt(m1b["hash_sess_key"].get<std::string>().c_str());
-    BigInt Da = BigInt(m1b["diffie_pub_k"].get<std::string>().c_str());
+    BigInt h = BigInt::from_base64(m1b["hash_sess_key"].get<std::string>());
+    BigInt Da = BigInt::from_base64(m1b["diffie_pub_k"].get<std::string>());
 
     std::vector<u8> m1a_data = BigInt::to_bytes(m1a_bigint);
     std::vector<u8> hm1a_data;
@@ -225,7 +225,7 @@ int main(int argc, char **argv) {
     CHECK(h == hm1a, "Error: bad packet.");
 
     JSON m2a = {
-      { "key", sb.str_in_base(10) }
+      { "key", BigInt::to_base64(sb) }
     };
 
     BigInt m2a_bigint = BigInt::from_string(m2a.dump());
@@ -241,8 +241,8 @@ int main(int argc, char **argv) {
     BigInt hm2a = BigInt::from_bytes(hm2a_data);
 
     JSON m2b = {
-      { "hash_sess_key", hm2a.str_in_base(10) },
-      { "diffie_pub_k", Db.str_in_base(10) }
+      { "hash_sess_key", BigInt::to_base64(hm2a) },
+      { "diffie_pub_k", BigInt::to_base64(Db) }
     };
 
     BigInt m2b_bigint = BigInt::from_string(m2b.dump());
@@ -259,7 +259,7 @@ int main(int argc, char **argv) {
 
     JSON m2c_json = {
       { "agreement_data", m2b },
-      { "signature", sig2.str_in_base(10) }
+      { "signature", BigInt::to_base64(sig2) }
     };
 
     BigInt m2c_bigint = BigInt::from_string(m2c_json.dump());
@@ -273,8 +273,8 @@ int main(int argc, char **argv) {
     BigInt m2c = BigInt::from_bytes(ct1);
 
     JSON m2 = {
-      { "payload", m2c.str_in_base(10) },
-      { "sess_key", ses2.str_in_base(10) }
+      { "payload", BigInt::to_base64(m2c) },
+      { "sess_key", BigInt::to_base64(ses2) }
     };
 
     server.send_response(m2);
@@ -302,7 +302,7 @@ int main(int argc, char **argv) {
     server.recv_hmac(m3);
     LOG("Received packet 3 from: " << other.name);
 
-    BigInt m3_tag = BigInt(m3["tag"].get<std::string>().c_str());
+    BigInt m3_tag = BigInt::from_base64(m3["tag"].get<std::string>());
 
     server.recv_audio("audio_server.encrypted");
     LOG("Received audio from: " << other.name);

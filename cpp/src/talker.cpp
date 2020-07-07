@@ -174,7 +174,7 @@ int main(int argc, char **argv) {
   BigInt Da = alice.dh_pk;
 
   JSON m1a = {
-    { "key", sa.str_in_base(10) },
+    { "key", BigInt::to_base64(sa) },
     { "tod", tod }
   };
 
@@ -195,8 +195,8 @@ int main(int argc, char **argv) {
   BigInt hm1a = BigInt::from_bytes(hm1a_data);
 
   JSON m1b {
-    { "hash_sess_key", hm1a.str_in_base(10) },
-    { "diffie_pub_k", Da.str_in_base(10) }
+    { "hash_sess_key", BigInt::to_base64(hm1a) },
+    { "diffie_pub_k", BigInt::to_base64(Da) }
   };
 
   BigInt m1b_bigint = BigInt::from_string(m1b.dump());
@@ -213,7 +213,7 @@ int main(int argc, char **argv) {
 
   JSON something = {
     { "agreement_data", m1b },
-    { "signature", sig1.str_in_base(10) }
+    { "signature", BigInt::to_base64(sig1) }
   };
 
   BigInt something_bigint = BigInt::from_string(something.dump());
@@ -227,8 +227,8 @@ int main(int argc, char **argv) {
   BigInt m1c = BigInt::from_bytes(ct);
 
   JSON m1 = {
-    { "payload", m1c.str_in_base(10) },
-    { "sess_key", ses1.str_in_base(10) }
+    { "payload", BigInt::to_base64(m1c) },
+    { "sess_key", BigInt::to_base64(ses1) }
   };
 
   // Initialize the TCP client.
@@ -245,14 +245,14 @@ int main(int argc, char **argv) {
     client.recv_response(m2);
     LOG("Received packet 2 from: " << other.name);
 
-    BigInt m2c = BigInt(m2["payload"].get<std::string>().c_str());
-    BigInt ses2 = BigInt(m2["sess_key"].get<std::string>().c_str());
+    BigInt m2c = BigInt::from_base64(m2["payload"].get<std::string>());
+    BigInt ses2 = BigInt::from_base64(m2["sess_key"].get<std::string>());
 
     BigInt m2a_bigint = alice.decrypt(ses2);
 
     JSON m2a = JSON::parse(BigInt::to_string(m2a_bigint));
 
-    BigInt sb = BigInt(m2a["key"].get<std::string>().c_str());
+    BigInt sb = BigInt::from_base64(m2a["key"].get<std::string>());
 
     std::vector<u8> ct2 = BigInt::to_bytes(m2c);
     std::vector<u8> pt2(ct2.size());
@@ -265,7 +265,7 @@ int main(int argc, char **argv) {
     JSON something2 = JSON::parse(BigInt::to_string(something2_bigint));
 
     JSON m2b = something2["agreement_data"].get<JSON>();
-    BigInt sig2 = BigInt(something2["signature"].get<std::string>().c_str());
+    BigInt sig2 = BigInt::from_base64(something2["signature"].get<std::string>());
 
     BigInt m2b_bigint = BigInt::from_string(m2b.dump());
 
@@ -279,8 +279,8 @@ int main(int argc, char **argv) {
 
     CHECK(alice.verify(other, sig2) == hm2b, "Error: bad signature.");
 
-    BigInt h = BigInt(m2b["hash_sess_key"].get<std::string>().c_str());
-    BigInt Db = BigInt(m2b["diffie_pub_k"].get<std::string>().c_str());
+    BigInt h = BigInt::from_base64(m2b["hash_sess_key"].get<std::string>());
+    BigInt Db = BigInt::from_base64(m2b["diffie_pub_k"].get<std::string>());
 
     std::vector<u8> m2a_data = BigInt::to_bytes(m2a_bigint);
     std::vector<u8> hm2a_data;
@@ -336,7 +336,7 @@ int main(int argc, char **argv) {
     BigInt tag = BigInt::from_bytes(tag_hash);
 
     JSON m3 = {
-      { "tag", tag.str_in_base(10) }
+      { "tag", BigInt::to_base64(tag) }
     };
 
     client.send_hmac(m3);

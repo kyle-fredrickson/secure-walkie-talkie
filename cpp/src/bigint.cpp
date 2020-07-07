@@ -361,7 +361,8 @@ std::string BigInt::to_base64(const BigInt& n) {
 
 BigInt BigInt::from_base64(const std::string& data) {
   size_t padding = count(data.begin(), data.end(), '=');
-  std::vector<uint8_t> decoded(base64_decoded_length(data.size()) - padding);
+  size_t decoded_length = base64_decoded_length(data.size()) - padding;
+  std::vector<uint8_t> decoded(decoded_length);
 
   size_t i = 0, j = 0;
 
@@ -373,9 +374,9 @@ BigInt BigInt::from_base64(const std::string& data) {
 
     size_t t = (w << 18) + (x << 12) + (y << 6) + z;
 
-    if (j < base64_decoded_length(data.size())) decoded[j++] = (t >> 16) & 255;
-    if (j < base64_decoded_length(data.size())) decoded[j++] = (t >> 8)  & 255;
-    if (j < base64_decoded_length(data.size())) decoded[j++] = (t >> 0)  & 255;
+    if (j < decoded_length) decoded[j++] = (t >> 16) & 255;
+    if (j < decoded_length) decoded[j++] = (t >> 8)  & 255;
+    if (j < decoded_length) decoded[j++] = (t >> 0)  & 255;
   }
 
   return from_bytes(decoded);
