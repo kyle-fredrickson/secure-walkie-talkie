@@ -166,7 +166,7 @@ int main(int argc, char **argv) {
 
   BigInt da = BigInt::rand_n_bits(4096, ms_since_epoch());
 
-  u64 tod = ms_since_epoch();
+  BigInt tod = BigInt::from_uint64(ms_since_epoch());
 
   Being alice("alice", rsa_p, rsa_q, rsa_e, dh_p, dh_g, da);
 
@@ -175,7 +175,7 @@ int main(int argc, char **argv) {
 
   JSON m1a = {
     { "key", BigInt::to_base64(sa) },
-    { "tod", tod }
+    { "tod", BigInt::to_base64(tod) }
   };
 
   BigInt m1a_bigint = BigInt::from_string(m1a.dump());
@@ -222,7 +222,7 @@ int main(int argc, char **argv) {
   std::vector<u8> ct(pt.size());
   std::vector<u8> key_sa= BigInt::to_bytes(sa);
 
-  ctr_encrypt(tod, key_sa.data(), pt.data(), ct.data(), pt.size());
+  ctr_encrypt(BigInt::to_uint64(tod), key_sa.data(), pt.data(), ct.data(), pt.size());
 
   BigInt m1c = BigInt::from_bytes(ct);
 
@@ -258,7 +258,7 @@ int main(int argc, char **argv) {
     std::vector<u8> pt2(ct2.size());
     std::vector<u8> key_sb = BigInt::to_bytes(sb);
 
-    ctr_decrypt(tod, key_sb.data(), ct2.data(), pt2.data(), ct2.size());
+    ctr_decrypt(BigInt::to_uint64(tod), key_sb.data(), ct2.data(), pt2.data(), ct2.size());
 
     BigInt something2_bigint = BigInt::from_bytes(pt2);
 
@@ -315,7 +315,7 @@ int main(int argc, char **argv) {
       record_audio("audio_client.wav");
     }
 
-    encrypt_audio(k1, tod, "audio_client.wav", "audio_client.encrypted");
+    encrypt_audio(k1, BigInt::to_uint64(tod), "audio_client.wav", "audio_client.encrypted");
 
     struct stat statbuf;
     stat("audio_client.encrypted", &statbuf);

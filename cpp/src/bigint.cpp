@@ -382,6 +382,16 @@ BigInt BigInt::from_base64(const std::string& data) {
   return from_bytes(decoded);
 }
 
+uint64_t BigInt::to_uint64(const BigInt& n) {
+  return (uint64_t)mpz_get_ui(n.v.get_mpz_t());
+}
+
+BigInt BigInt::from_uint64(const uint64_t n) {
+  BigInt temp;
+  mpz_set_ui(temp.v.get_mpz_t(), n);
+  return temp;
+}
+
 std::ostream& operator<<(std::ostream& os, const BigInt& n) {
   os << n.v;
   return os;

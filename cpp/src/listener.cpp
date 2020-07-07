@@ -174,7 +174,7 @@ int main(int argc, char **argv) {
     JSON m1a = JSON::parse(BigInt::to_string(m1a_bigint));
 
     BigInt sa = BigInt::from_base64(m1a["key"].get<std::string>());
-    u64 tod = m1a["tod"].get<u64>();
+    u64 tod = BigInt::to_uint64(BigInt::from_base64(m1a["tod"].get<std::string>()));
 
     std::vector<u8> ct2 = BigInt::to_bytes(m1c);
     std::vector<u8> pt2(ct2.size());
