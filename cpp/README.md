@@ -1,6 +1,6 @@
-# Encrypted Walkie-Talkie
+# C++ Implementation
 
-Continued project from UCSC's CSE 234: Understanding Cryptography course.
+The C++ implementation of the secure walkie-talkie.
 
 ### Design
 
