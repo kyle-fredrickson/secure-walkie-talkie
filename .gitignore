@@ -10,3 +10,9 @@ env
 *.wav
 *.mp3
 *.m4a
+
+# Generated files
+cpp/obj
+cpp/listener
+cpp/talker
+rust/target
