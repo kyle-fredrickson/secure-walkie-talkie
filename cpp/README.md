@@ -26,19 +26,19 @@ change depending on your system in ```audio.cpp``` regarding the call to
 
 To build both the talker and listener:
 
-	  $ make
+  $ make
 
 Or:
 
-	  $ make all
+  $ make all
 
 To build just the listener:
 
-    $ make listener
+  $ make listener
 
 To build just the talker:
 
-    $ make talker
+  $ make talker
 
 ### Usage
 
