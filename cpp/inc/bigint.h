@@ -111,6 +111,14 @@ class BigInt {
 
     static BigInt rand_n_bits(const size_t bits, const size_t seed);
 
+    static std::string to_base64(const BigInt& n);
+
+    static BigInt from_base64(const std::string& data);
+
+    static uint64_t to_uint64(const BigInt& n);
+
+    static BigInt from_uint64(const uint64_t n);
+
     friend std::ostream& operator<<(std::ostream& os, const BigInt& n);
 
     friend std::istream& operator>>(std::istream& is, BigInt& n);

@@ -3,7 +3,7 @@ OBJECTS 	= obj
 HEADERS 	= inc
 
 CXX     	= g++ -std=c++17
-CXXFLAGS 	= -Wall -Wpedantic -Werror -Wextra -I$(HEADERS)
+CXXFLAGS 	= -Wall -Wpedantic -Werror -Wextra -I$(HEADERS) -g
 LXXFLAGS	= -lgmpxx -lgmp
 
 MODULES 	= audio bigint being ctr database dh rsa sha3 simon socket util
