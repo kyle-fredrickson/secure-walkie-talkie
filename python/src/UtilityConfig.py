@@ -14,8 +14,7 @@ class UtilityConfig:
             config = _read_json(config)
 
         self.name = config["name"]
-        self.ip = config["ip"]
-        self.port = config["port"]
+        self.ip_port = (config["ip"], config["port"])
         self.rsa_n = int(config["rsa_n"], 10)
         self.rsa_pub = int(config["rsa_pub"], 10)
         self.rsa_pri = int(config["rsa_pri"], 10)
@@ -39,3 +38,12 @@ class UtilityConfig:
 
     def get_rsa_n(self, name):
         return int(self.get_contact(name)["rsa_n"], 10)
+
+    def get_rsa_pub(self, name):
+        return int(self.get_contact(name)["rsa_pub"], 10)
+
+    def get_ip_port(self, name):
+        ip = self.get_contact(name)["ip"]
+        port = self.get_contact(name)["port"]
+
+        return (ip, port)

@@ -1,3 +1,7 @@
+"""
+This handles the construction and processing of messages sent and received.
+"""
+
 import base64
 from datetime import datetime
 import json
@@ -9,7 +13,7 @@ import RSA as rsa
 import SHA3 as hash
 import UtilityBit as ub
 
-### Constants ###
+### MESSAGE TYPES ###
 
 TYPE_BYTES = 1
 LENGTH_BYTES = 8
@@ -22,7 +26,27 @@ DATA_TYPE = "D"
 
 ALLOWED_TYPES = [REQUEST_TYPE, RESPONSE_TYPE, HEADER_TYPE, DATA_TYPE]
 
-### Key Exchange ###
+def is_request_type(type):
+    return type == REQUEST_TYPE
+
+def is_response_type(type):
+    return type == RESPONSE_TYPE
+
+def is_header_type(type):
+    return type == HEADER_TYPE
+
+def is_data_type(type):
+    return type == DATA_TYPE
+
+def get_length(data):
+    length = str(len(data))
+    if len(length) > LENGTH_BYTES:
+        raise Exception("message exceeded " + ("9" * LENGTH_BYTES))
+    length = ("0" * (LENGTH_BYTES - len(length)) + length)
+
+    return length
+
+### Miscellaneous ###
 
 def generate_random_key(byte_len = 1000):
     entropy = []
@@ -32,196 +56,54 @@ def generate_random_key(byte_len = 1000):
     b = bytes(entropy)
     return hash.sha3_256(b)
 
+def get_shared_secret(my_diffie, their_diffie_pub):
+    ss = my_diffie.get_shared_secret(their_diffie_pub)
+    ss = ub.num_to_bytes(ss)
+    return hash.sha3_256(ss)
 
-class KeyExchange:
-    def __init__(self, config, name_o_r = None):
-        self.config = config
-        self.rsa_decrypt = rsa.RSA(config.rsa_n, config.rsa_pri)
-        self.dhke = dh.DHKE(config.dh_p,config.dh_g)
-        self.name_of_recipient = name_o_r
+def get_keys(ss):
+    m1 = bytes([1]) + ss.encode()
+    m2 = bytes([2]) + ss.encode()
 
-    def key_exchange(self, tod = None):
-        # Session Key
-        key = int(generate_random_key(), 16)
+    k1 = hash.sha3_256(m1)
+    k2 = hash.sha3_256(m2)
 
-        if tod == None:
-            tod = int(datetime.now().timestamp()) * 1000000
-            sess_key = {"key": str(key), "ToD": str(tod)}
-            sess_key_str = json.dumps(sess_key)
-            sess_key_num = rsa.ascii_to_num(sess_key_str)
-        else:
-            sess_key = key
-            sess_key_str = str(sess_key)
-            sess_key_num = key
+    return (k1, k2)
 
-        rsa_nB = self.config.get_rsa_n(self.name_of_recipient)
-        rsa_encrypt_b = rsa.RSA(rsa_nB, self.config.rsa_pub)
+### Package Messages ###
 
-        if(sess_key_num >= rsa_nB):
-            raise Exception("session key too large")
+def get_request(my_diffie_pub, my_rsa_decrypt, their_rsa_encrypt):
+    (request, tod) = compute_request(my_diffie_pub, my_rsa_decrypt, their_rsa_encrypt)
+    request = json.dumps(request)
 
-        enc_sess_key = rsa_encrypt_b.encrypt(sess_key_num)
-        hash_sess_key = int(hash.sha3_256(sess_key_str.encode()), 16)
+    length = get_length(request)
 
-        # Agreement
-        diffie_pub_key = self.dhke.X
-        agree = {"hash_sess_key": str(hash_sess_key), "diffie_pub_k": str(diffie_pub_key)}
-        agree_str = json.dumps(agree)
+    return (REQUEST_TYPE.encode() + length.encode() + request.encode(), tod)
 
-        hash_agree = int(hash.sha3_256(agree_str.encode()), 16)
+def get_response(my_diffie_pub, my_rsa_decrypt, their_rsa_encrypt, tod):
+    response = compute_response(my_diffie_pub, my_rsa_decrypt, their_rsa_encrypt, tod)
+    response = json.dumps(response)
 
-        signature = self.rsa_decrypt.encrypt(hash_agree)
-        payload = {"agreement_data": agree, "signature": str(signature)}
-        payload_str = json.dumps(payload)
+    length = get_length(response)
 
-        c = cm.CounterMode(hex(key)[2:])
-        enc_payload = c.encrypt(payload_str.encode(), tod)
-        enc_payload_str = base64.b64encode(enc_payload).decode("utf-8")
+    return RESPONSE_TYPE.encode() + length.encode() + response.encode()
 
-        dhke_json = {"payload": enc_payload_str, "sess_key": str(enc_sess_key)}
+def get_header_data(data, my_diffie, their_diffie_pub, tod):
+    (header, data) = compute_header_data(data, my_diffie, their_diffie_pub, tod)
 
-        return (dhke_json, tod)
+    header = json.dumps(header)
 
-    # listener- after I decrypt it I know who it is
-    def decrypt_message1(self, js):
-        try:
-            # Session Key
-            enc_sess_key = int(js["sess_key"], 10)
+    header_length = get_length(header)
+    data_length = get_length(data)
 
-            dec_sess_key = self.rsa_decrypt.encrypt(enc_sess_key)
-            sess_key_str = rsa.num_to_ascii(dec_sess_key)
-            sess_key = json.loads(sess_key_str)
-            key = int(sess_key["key"], 10)
-            tod = int(sess_key["ToD"], 10)
+    header_message = HEADER_TYPE.encode() + header_length.encode() + header.encode()
+    data_message = DATA_TYPE.encode() + data_length.encode() + data
 
-            hash_sess_key = hash.sha3_256(sess_key_str.encode())
-
-            #decrypt payload
-
-            enc_payload = base64.b64decode(js["payload"])
-            c = cm.CounterMode(hex(key)[2:])
-            payload = json.loads(c.decrypt(enc_payload, tod).decode("utf-8"))
-
-            # Verify Session Key
-            claimed_hash_sess_key = int(payload["agreement_data"]["hash_sess_key"], 10)
-
-            if hash_sess_key != hash_sess_key:
-                raise Exception("failed to verify session key")
-
-            # Verify Signature
-            agree_str = json.dumps(payload["agreement_data"])
-
-            hash_agree = hash.sha3_256(agree_str.encode())
-            sig = int(payload["signature"], 10)
-
-            name = ""
-            for i in self.config.get_contacts():
-                rsa_n = self.config.get_rsa_n(i)
-                rsa_verify = rsa.RSA(rsa_n, self.config.rsa_pub)
-                if rsa_verify.encrypt(sig) == int(hash_agree, 16):
-                    name = i
-
-            if name == "":
-                raise Exception("failed to verify signature")
-            else:
-                self.name_of_recipient = name
-
-            return (int(payload["agreement_data"]["diffie_pub_k"], 10), tod, self.name_of_recipient)
-
-        except:
-            raise Exception("failed to decrypt or verify the session key")
-
-    def decrypt_message2(self, js, tod):
-        try:
-            # Session Key
-            enc_sess_key = int(js["sess_key"], 10)
-
-            key = self.rsa_decrypt.encrypt(enc_sess_key)
-            sess_key_str = str(key)
-
-            hash_sess_key = hash.sha3_256(sess_key_str.encode())
-
-            #Decrypt Payload
-            enc_payload = base64.b64decode(js["payload"])
-            c = cm.CounterMode(hex(key)[2:])
-            payload = json.loads(c.decrypt(enc_payload, tod).decode("utf-8"))
-
-            # Verify Session Key
-            claimed_hash_sess_key = int(payload["agreement_data"]["hash_sess_key"], 10)
-
-            if hash_sess_key != hash_sess_key:
-                raise Exception("failed to verify session key")
-
-            # Verify Signature
-            agree_str = json.dumps(payload["agreement_data"])
-
-            hash_agree = hash.sha3_256(agree_str.encode())
-            sig = int(payload["signature"], 10)
-
-            rsa_n = self.config.get_rsa_n(self.name_of_recipient)
-            rsa_verify = rsa.RSA(rsa_n, self.config.rsa_pub)
-
-            if rsa_verify.encrypt(sig) != int(hash_agree, 16):
-                raise Exception("failed to verify signature")
-
-            return int(payload["agreement_data"]["diffie_pub_k"], 10)
-
-        except:
-            raise Exception("failed to decrypt or verify the session key")
+    return (header_message, data_message)
 
 
-    def get_shared_secret(self, Y):
-        ss = self.dhke.get_shared_secret(Y)
-        ss = ub.num_to_bytes(ss)
-        return hash.sha3_256(ss)
-
-    def get_keys(self, ss):
-        m1 = bytes([1]) + ss.encode()
-        m2 = bytes([2]) + ss.encode()
-
-        k1 = hash.sha3_256(m1)
-        k2 = hash.sha3_256(m2)
-
-        return (k1, k2)
-
-
-### Functions for Sending ###
-
-"""
-Given a type (1,2,3,D-- from the protocol), and a string the function processes
-it into byte array suitable for sending.
-
-prepare_json : str, str -> byte array
-"""
-def prepare_json(type, payload):
-    type = type.encode()
-    payload = payload.encode()
-    length = get_length(payload)
-
-    return type + length + payload
-
-"""
-Given a type (1,2,3,D-- from the protocol), and a byte array the function processes
-it into byte array suitable for sending.
-
-prepare_data : str, byte array -> byte array
-"""
-def prepare_data(type, payload):
-    type = type.encode()
-    payload = payload
-    length = get_length(payload)
-
-    return type + length + payload
-
-
-### Function for Receiving ###
-
-"""
-Given a byte array representing a header it processes the array into a type and length.
-
-parse_header: byte array -> (str, int)
-"""
-def parse_header(byte_array):
+### Process Messages ###
+def process_header(byte_array):
     try:
         type = byte_array[:TYPE_BYTES].decode("utf-8")
 
@@ -234,49 +116,193 @@ def parse_header(byte_array):
     except Exception as e:
         raise Exception(str(e))
 
-### Miscellaneous ###
-"""
-Given a byte array the function computes the length suitable for sending in the
-protocol.
+def process_body(byte_array):
+    body = byte_array.decode("utf-8")
+    return json.loads(body)
 
-get_length: byte array -> byte array
-"""
-def get_length(data):
-    length = str(len(data))
-    if len(length) > LENGTH_BYTES:
-        raise Exception("message exceeded " + ("9" * LENGTH_BYTES))
-    length = ("0" * (LENGTH_BYTES - len(length)) + length).encode()
+def process_request(data, my_rsa_decrypt, contacts):
+    js = process_body(data)
+    return decrypt_request(js, my_rsa_decrypt, contacts)
 
-    return length
+def process_response(data, my_rsa_decrypt, their_rsa_encrypt, tod):
+    js = process_body(data)
+    return decrypt_response(js, my_rsa_decrypt, their_rsa_encrypt, tod)
 
-"""
-Function to abstract the request type.
+def process_tag(tag):
+    tag = process_body(tag)
+    return tag["tag"]
 
-is_request_type: str -> bool
-"""
-def is_request_type(type):
-    return type == REQUEST_TYPE
+def process_data(tag, enc_data, my_diffie, their_diffie_pub, tod):
+    return decrypt_data(tag, enc_data, my_diffie, their_diffie_pub, tod)
 
-"""
-Function to abstract the response type.
+### Compute Messages ###
 
-is_response_type: str -> bool
-"""
-def is_response_type(type):
-    return type == RESPONSE_TYPE
+def compute_request(my_diffie_pub, my_rsa_decrypt, their_rsa_encrypt):
+    key = int(generate_random_key(), 16)
 
-"""
-Function to abstract the header type.
+    tod = int(datetime.now().timestamp()) * 1000000
+    sess_key = {"key": str(key), "ToD": str(tod)}
+    sess_key_str = json.dumps(sess_key)
+    sess_key_num = rsa.ascii_to_num(sess_key_str)
 
-is_header_type: str -> bool
-"""
-def is_header_type(type):
-    return type == HEADER_TYPE
 
-"""
-Function to abstract the data type.
+    if(sess_key_num >= their_rsa_encrypt.modulus):
+        raise Exception("session key too large")
 
-is_data_type: str -> bool
-"""
-def is_data_type(type):
-    return type == DATA_TYPE
+    enc_sess_key = their_rsa_encrypt.encrypt(sess_key_num)
+    hash_sess_key = int(hash.sha3_256(sess_key_str.encode()), 16)
+
+    agree = {"hash_sess_key": str(hash_sess_key), "diffie_pub_k": str(my_diffie_pub)}
+    agree_str = json.dumps(agree)
+
+    hash_agree = int(hash.sha3_256(agree_str.encode()), 16)
+
+    signature = my_rsa_decrypt.encrypt(hash_agree)
+    payload = {"agreement_data": agree, "signature": str(signature)}
+    payload_str = json.dumps(payload)
+
+    c = cm.CounterMode(hex(key)[2:])
+    enc_payload = c.encrypt(payload_str.encode(), tod)
+    enc_payload_str = base64.b64encode(enc_payload).decode("utf-8")
+
+    dhke_json = {"payload": enc_payload_str, "sess_key": str(enc_sess_key)}
+
+    return (dhke_json, tod)
+
+def compute_response(my_diffie_pub, my_rsa_decrypt, their_rsa_encrypt, tod):
+    key = int(generate_random_key(), 16)
+
+    sess_key = key
+    sess_key_str = str(sess_key)
+    sess_key_num = rsa.ascii_to_num(sess_key_str)
+
+    if(sess_key_num >= their_rsa_encrypt.modulus):
+        raise Exception("session key too large")
+
+    enc_sess_key = their_rsa_encrypt.encrypt(sess_key_num)
+    hash_sess_key = int(hash.sha3_256(sess_key_str.encode()), 16)
+
+    # Agreement
+    agree = {"hash_sess_key": str(hash_sess_key), "diffie_pub_k": str(my_diffie_pub)}
+    agree_str = json.dumps(agree)
+
+    hash_agree = int(hash.sha3_256(agree_str.encode()), 16)
+
+    signature = my_rsa_decrypt.encrypt(hash_agree)
+    payload = {"agreement_data": agree, "signature": str(signature)}
+    payload_str = json.dumps(payload)
+
+    c = cm.CounterMode(hex(key)[2:])
+    enc_payload = c.encrypt(payload_str.encode(), tod)
+    enc_payload_str = base64.b64encode(enc_payload).decode("utf-8")
+
+    dhke_json = {"payload": enc_payload_str, "sess_key": str(enc_sess_key)}
+
+    return dhke_json
+
+def compute_header_data(data, my_diffie, their_diffie_pub, tod):
+    (k1, k2) = get_keys(get_shared_secret(my_diffie, their_diffie_pub))
+
+    c = cm.CounterMode(k1)
+    encrypted_data = c.encrypt(data, tod)
+
+    m = k2.encode() + encrypted_data
+    h = hash.sha3_256(m)
+    header = {"tag" : h}
+
+    return (header, encrypted_data)
+
+### Decrypt Messages ###
+
+def decrypt_request(js, my_rsa_decrypt, contacts):
+    enc_sess_key = int(js["sess_key"], 10)
+
+    dec_sess_key = my_rsa_decrypt.encrypt(enc_sess_key)
+    sess_key_str = rsa.num_to_ascii(dec_sess_key)
+    sess_key = json.loads(sess_key_str)
+    key = int(sess_key["key"], 10)
+    tod = int(sess_key["ToD"], 10)
+
+    hash_sess_key = hash.sha3_256(sess_key_str.encode())
+
+    #decrypt payload
+
+    enc_payload = base64.b64decode(js["payload"])
+    c = cm.CounterMode(hex(key)[2:])
+    payload = json.loads(c.decrypt(enc_payload, tod).decode("utf-8")) # there's an error here occasionally
+
+    claimed_hash_sess_key = hex(int(payload["agreement_data"]["hash_sess_key"], 10))[2:]
+
+    if claimed_hash_sess_key != hash_sess_key:
+        raise Exception("failed to verify session key")
+
+    # Verify Signature
+    agree_str = json.dumps(payload["agreement_data"])
+
+    hash_agree = hash.sha3_256(agree_str.encode())
+    sig = int(payload["signature"], 10)
+
+    name = None
+
+    for contact in contacts:
+        rsa_n = int(contact["rsa_n"], 10)
+        rsa_pub = int(contact["rsa_pub"], 10)
+        rsa_encrypt = rsa.RSA(rsa_n, rsa_pub)
+
+        if rsa_encrypt.encrypt(sig) == int(hash_agree, 16):
+            name = contact["name"]
+            break
+
+    if name is None:
+        raise Exception("Message sent by someone outside your contacts.")
+
+    return (int(payload["agreement_data"]["diffie_pub_k"], 10), tod, name)
+
+def decrypt_response(js, my_rsa_decrypt, their_rsa_encrypt, tod):
+    enc_sess_key = int(js["sess_key"], 10)
+
+    dec_sess_key = my_rsa_decrypt.encrypt(enc_sess_key)
+
+    sess_key_str = rsa.num_to_ascii(dec_sess_key)
+    key = int(sess_key_str, 10)
+
+    hash_sess_key = hash.sha3_256(sess_key_str.encode())
+
+    #decrypt payload
+
+    enc_payload = base64.b64decode(js["payload"])
+    c = cm.CounterMode(hex(key)[2:])
+    payload = json.loads(c.decrypt(enc_payload, tod).decode("utf-8")) # this causes an error occasionally
+
+    claimed_hash_sess_key = hex(int(payload["agreement_data"]["hash_sess_key"], 10))[2:]
+
+    if claimed_hash_sess_key != hash_sess_key:
+        raise Exception("failed to verify session key")
+
+    # Verify Signature
+    agree_str = json.dumps(payload["agreement_data"])
+
+    hash_agree = hash.sha3_256(agree_str.encode())
+    sig = int(payload["signature"], 10)
+
+    if their_rsa_encrypt.encrypt(sig) != int(hash_agree, 16):
+        raise Exception("Failed to verify signature.")
+
+    return int(payload["agreement_data"]["diffie_pub_k"], 10)
+
+def validate_data(tag, enc_data, k):
+    m = k.encode() + enc_data
+    h = hash.sha3_256(m)
+
+    return tag == h
+
+def decrypt_data(tag, enc_data, my_diffie, their_diffie_pub, tod):
+    (k1, k2) = get_keys(get_shared_secret(my_diffie, their_diffie_pub))
+
+    if(validate_data(tag, enc_data, k2)):
+        c = cm.CounterMode(k1)
+        data = c.decrypt(enc_data, tod)
+
+        return data
+    else:
+        return None

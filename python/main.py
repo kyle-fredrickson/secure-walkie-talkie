@@ -8,9 +8,9 @@ import sys
 sys.path.append("src")
 import Audio as aud
 import CounterMode as cm
-from Listener import Listener
+from TcpListener import TcpListener
 import SHA3 as hash
-from Talker import Talker
+from TcpTalker import TcpTalker
 import UtilityConfig as uc
 
 ### Setup ###
@@ -26,6 +26,16 @@ except:
 ### Functionality ###
 
 def login(name, debug = False):
+    file_name = os.path.join("config", name + ".json")
+    with open(file_name, "rb") as file:
+        config = file.read()
+
+    js = json.loads(config)
+    config = uc.UtilityConfig(js)
+
+    return config
+
+    """
     if not debug:
         password = getpass.getpass(name + ", enter your password:")
 
@@ -52,10 +62,11 @@ def login(name, debug = False):
         config = uc.UtilityConfig(js)
 
         return config
+    """
 
 def listen(config, text):
     try:
-        l = Listener(config)
+        l = TcpListener(config)
         data = l.listen()
 
         if text:
@@ -68,14 +79,14 @@ def listen(config, text):
 
 def talk(file, name, config, text):
     try:
-        t = Talker(config)
+        t = TcpTalker(config, name)
 
         if text:
             data = file.encode()
         else:
             data = AUDIO.read(file)
 
-        t.talk(data, name)
+        t.talk(data)
     except Exception as e:
         print(str(e))
         #print("Error: sending failed")
