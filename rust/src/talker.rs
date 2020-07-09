@@ -1,7 +1,9 @@
 use serde_json::{json, Value};
 use std::error::Error;
 use std::net::TcpStream;
+use std::str::FromStr;
 use structopt::StructOpt;
+use num_bigint_dig::*;
 
 #[derive(Debug, StructOpt)]
 #[structopt(
@@ -14,10 +16,23 @@ struct Opt {
 
     #[structopt(short, long, default_value = "8123")]
     port: u16,
+
+    #[structopt(short, long)]
+    sandbox: bool
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
     let opt = Opt::from_args();
+
+    if opt.sandbox {
+        let i = BigUint::from_str("5")?;
+        let j = BigUint::from_str("8")?;
+        let m = BigUint::from_str("13")?;
+
+        assert_eq!(i.mod_inverse(m).unwrap(), j.to_bigint().unwrap());
+
+        return Ok(());
+    }
 
     // Format supplied options into address.
     let addr = format!("{}:{}", opt.ip, opt.port);

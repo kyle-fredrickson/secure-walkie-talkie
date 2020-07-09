@@ -7,10 +7,7 @@ edition = "2018"
 [dependencies]
 structopt = "0.3.15"
 serde_json = "1.0"
-
-[lib]
-name = "protocol"
-path = "src/protocol.rs"
+num-bigint-dig = "0.6.0"
 
 [[bin]]
 name = "talker"
@@ -19,3 +16,7 @@ path = "src/talker.rs"
 [[bin]]
 name = "listener"
 path = "src/listener.rs"
+
+[lib]
+name = "protocol"
+path = "src/protocol.rs"
