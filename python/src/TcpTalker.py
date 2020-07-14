@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import json
 import socket
 
@@ -50,13 +48,3 @@ class TcpTalker:
 
         self.sock.send(header)
         self.sock.send(enc_data)
-
-### delete below here
-import UtilityConfig as uc
-
-def main():
-    b = TcpTalker(uc.UtilityConfig("../config/Alice.json"), "Bob")
-    b.talk(b"hello")
-
-if __name__ == "__main__":
-    main()

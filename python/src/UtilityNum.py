@@ -2,8 +2,6 @@ from random import randint
 
 import SHA3 as hash
 
-
-
 def inverse(k, mod):
     k = k % mod
     (gcd, t, s) = extended_euclidian_algorithm(mod, k)

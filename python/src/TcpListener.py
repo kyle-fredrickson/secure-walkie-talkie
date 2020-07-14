@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import json
 import socket
 
@@ -80,14 +78,3 @@ class TcpListener:
         rsa_n = self.config.get_rsa_n(name)
         rsa_pub = self.config.get_rsa_pub(name)
         self.their_rsa_encrypt = rsa.RSA(rsa_n, rsa_pub)
-
-### delete below here
-import UtilityConfig as uc
-
-def main():
-    a = TcpListener(uc.UtilityConfig("../config/Bob.json"))
-    data = a.listen()
-    print(data)
-
-if __name__ == "__main__":
-    main()
