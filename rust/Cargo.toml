@@ -1,0 +1,22 @@
+[package]
+name = "walkie-talkie"
+version = "0.1.0"
+authors = ["Eugene Chou <euchou@ucsc.edu>"]
+edition = "2018"
+
+[dependencies]
+structopt = "0.3.15"
+serde_json = "1.0"
+num-bigint-dig = "0.6.0"
+
+[[bin]]
+name = "talker"
+path = "src/talker.rs"
+
+[[bin]]
+name = "listener"
+path = "src/listener.rs"
+
+[lib]
+name = "protocol"
+path = "src/protocol.rs"
