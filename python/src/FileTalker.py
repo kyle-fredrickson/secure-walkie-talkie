@@ -70,4 +70,3 @@ class FileTalker:
     def send_header_data(self, data, their_diffie_pub, tod):
         (header, enc_data) = up.get_header_data(data, self.my_diffie, their_diffie_pub, tod)
         uf.send_message(self.outfile, header + enc_data)
-

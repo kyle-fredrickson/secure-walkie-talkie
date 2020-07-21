@@ -28,14 +28,14 @@ function test () {
     ./$listener $LISTENER_CONFIG 2 $talkerOut $listenerOut $listenerVars
     ./$talker $TALKER_CONFIG $RECIPIENT $message 2 $listenerOut $talkerOut $talkerVars
 
-    # Talker sends message 3 and D. Listener receives message 3.
+    # Talker sends message 3 and D. Listener receives message 3 and D.
     ./$talker $TALKER_CONFIG $RECIPIENT $message 3 $listenerOut $talkerOut $talkerVars
     local receivedMessage=$(./$listener $LISTENER_CONFIG 3 $talkerOut $listenerOut $listenerVars)
 
-    rm $talkerOut
-    rm $listenerOut
-    rm $talkerVars
-    rm $listenerVars
+    #rm $talkerOut
+    #rm $listenerOut
+    #rm $talkerVars
+    #rm $listenerVars
 
     if [ $message = $receivedMessage ]; then
         return 0
