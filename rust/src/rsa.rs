@@ -10,15 +10,15 @@ pub fn encrypt(m: &Integer, e: &Integer, n: &Integer) -> Integer {
     m.clone().secure_pow_mod(e, n)
 }
 
-///// RSA decryption using BigUints.
-/////
-///// # Arguments
-///// * `c` - The "ciphertext" to decrypt.
-///// * `d` - The RSA private key.
+/// RSA decryption using BigUints.
+///
+/// # Arguments
+/// * `c` - The "ciphertext" to decrypt.
+/// * `d` - The RSA private key.
 /// * `n` - The RSA public modulus.
-// pub fn decrypt(c: &BigUint, d: &BigUint, n: &BigUint) -> BigUint {
-//     c.modpow(d, n)
-// }
+pub fn decrypt(c: &Integer, d: &Integer, n: &Integer) -> Integer {
+    c.clone().secure_pow_mod(d, n)
+}
 
 /// RSA signing using BigUints.
 ///

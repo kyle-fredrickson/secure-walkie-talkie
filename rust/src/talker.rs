@@ -1,4 +1,4 @@
-extern crate base64;
+// extern crate base64;
 
 use rug::{rand::RandState, integer::Order, Integer};
 use serde_json::{json, Value};
@@ -22,17 +22,14 @@ struct Opt {
 
     #[structopt(short, long, default_value = "8123")]
     port: u16,
+
+    #[structopt(short, long)]
+    test: bool
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Parse command-line options.
     let opt = Opt::from_args();
-
-    // Format supplied options into address.
-    let addr = format!("{}:{}", opt.ip, opt.port);
-
-    // Connect to address.
-    let mut stream = TcpStream::connect(&addr)?;
 
     // g is the Diffie-Hellman generator.
     let g = Integer::from_str_radix(
@@ -122,8 +119,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     let totient = Integer::from(&p_minus_1 * &q_minus_1);
     let rsa_priv = rsa_e.clone().invert(&Integer::from(totient)).unwrap();
 
-    // Start up random state.
+    // Start up random state (seed for now).
+    // TODO: Remove seeding when done.
     let mut rng = RandState::new();
+
+    if !opt.test {
+        let seed = Integer::from(1234);
+        rng.seed(&seed);
+    }
 
     // s_a is a 256-bit random number.
     let s_a = Integer::from(Integer::random_bits(256, &mut rng));
@@ -135,13 +138,21 @@ fn main() -> Result<(), Box<dyn Error>> {
     let dh_pub = g.secure_pow_mod(&d_a, &p);
 
     // Get time of in microseconds since Unix epoch.
-    let t = SystemTime::now().duration_since(UNIX_EPOCH)?.as_micros() as u64;
+    // TODO: Remove hardcoded time when done.
+    let t = if !opt.test {
+        32
+    } else {
+        SystemTime::now().duration_since(UNIX_EPOCH)?.as_micros() as u64
+    };
 
     // Construct message 1 part a.
     let m1_a = json!({
-        "key": base64::encode(&s_a.to_string()),
-        "tod": base64::encode(&t.to_string())
+        "key": s_a.to_string(),
+        "tod": t.to_string()
     });
+
+    println!("key = {}", s_a.to_string());
+    println!("tod = {}", t.to_string());
 
     // Convert m1_a from JSON to BigUint.
     let m1_a_int = Integer::from_digits(m1_a.to_string().as_bytes(), Order::MsfBe);
@@ -152,11 +163,17 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Compute hash of m1_a for the session key hash.
     let m1_a_hash = Sha3_256::digest(m1_a.to_string().as_bytes());
 
+    // Convert hash to large integer.
+    let m1_a_hash_int = Integer::from_digits(m1_a_hash.as_slice(), Order::MsfBe);
+
     // Construct message 1 part b.
     let m1_b = json!({
-        "hash_sess_key": base64::encode(m1_a_hash),
-        "diffie_pub_k": base64::encode(dh_pub.to_string())
+        "hash_sess_key": m1_a_hash_int.to_string(),
+        "diffie_pub_k": dh_pub.to_string()
     });
+
+    println!("hash_sess_key = {}", m1_a_hash_int.to_string());
+    println!("diffie_pub_k = {}", dh_pub.to_string());
 
     // Compute hash of m1_b.
     let m1_b_hash = Sha3_256::digest(m1_b.to_string().as_bytes());
@@ -170,7 +187,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Construct message 1 part c.
     let m1_c = json!({
         "agreement_data": m1_b,
-        "signature": base64::encode(&sig_1.to_string())
+        "signature": sig_1.to_string()
     });
 
     // TODO:: SIMON encryption on m1_c.
@@ -178,10 +195,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Construct message 1.
     let m1 = json!({
         "payload": m1_c,
-        "sess_key": base64::encode(&ses_1.to_string())
+        "sess_key": ses_1.to_string()
     });
 
-    println!("m1 = {}", serde_json::to_string_pretty(&m1)?);
+    println!("sess_key = {}", ses_1.to_string());
+
+    // Format supplied options into address.
+    let addr = format!("{}:{}", opt.ip, opt.port);
+
+    // Connect to address.
+    let mut stream = TcpStream::connect(&addr)?;
 
     // Send message 1.
     protocol::send_data(&mut stream, m1.to_string().as_bytes())?;
