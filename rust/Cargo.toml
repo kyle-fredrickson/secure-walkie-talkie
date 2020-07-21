@@ -6,13 +6,11 @@ edition = "2018"
 
 [dependencies]
 base64 = "0.12.3"
-num-bigint-dig = "0.6.0"
-rand = "0.7.3"
+gmp-mpfr-sys = { version = "1.2.0", features = ["use-system-libs"] }
+rug = "1.9.0"
 serde_json = "1.0"
 sha3 = "0.9.1"
 structopt = "0.3.15"
-gmp-mpfr-sys = { version = "1.2.0", features = ["use-system-libs"] }
-rug = "1.9.0"
 
 [[bin]]
 name = "talker"
