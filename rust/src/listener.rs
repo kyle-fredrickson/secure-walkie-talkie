@@ -3,6 +3,8 @@ use std::error::Error;
 use std::net::TcpListener;
 use structopt::StructOpt;
 
+mod protocol;
+
 #[derive(Debug, StructOpt)]
 #[structopt(
     name = "Walkie-Talkie",

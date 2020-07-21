@@ -2,6 +2,12 @@ use std::error::Error;
 use std::io::prelude::*;
 use std::net::TcpStream;
 
+/// Sends bytes of data over a TCP stream.
+///
+/// # Arguments
+///
+/// * `stream` - A mutable reference to a TcpStream.
+/// * `data` - A slice of bytes to send.
 pub fn send_data(stream: &mut TcpStream, data: &[u8]) -> Result<(), Box<dyn Error>> {
     // Write the type and length (currently just the length).
     stream.write_all(format!("{:0>8}", data.len()).as_bytes())?;
@@ -14,6 +20,11 @@ pub fn send_data(stream: &mut TcpStream, data: &[u8]) -> Result<(), Box<dyn Erro
     Ok(())
 }
 
+/// Receives bytes of data over a TcpStream.
+///
+/// # Arguments
+///
+/// * `stream` - A mutable reference to a TcpStream.
 pub fn recv_data(stream: &mut TcpStream) -> Result<Vec<u8>, Box<dyn Error>> {
     // Read 8 bytes denoting string.
     let mut buf = [0u8; 8];
