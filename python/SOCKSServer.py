@@ -68,7 +68,7 @@ class SocksProxy(StreamRequestHandler):
         r, w, e = select.select([client, remote], [], [])
 
         if client in r:
-            data = client.recv(9)
+            data = client.recv(4096)
             client.send(data)
             print(1, data)
             if remote.send(data) <= 0:
@@ -76,6 +76,7 @@ class SocksProxy(StreamRequestHandler):
 
         if remote in r:
             data = remote.recv(4096)
+            remote.send(data)
             print(2, data)
             if client.send(data) <= 0:
                 return
