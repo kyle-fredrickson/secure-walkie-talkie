@@ -9,7 +9,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use structopt::StructOpt;
 
 mod protocol;
+
 mod rsa;
+use rsa::{encrypt, sign};
 
 #[derive(Debug, StructOpt)]
 #[structopt(
@@ -134,8 +136,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     // d_a is a 4096-bit random number.
     let d_a = Integer::from(Integer::random_bits(4096, &mut rng));
 
-    // dh_pub is the public Diffie-Hellman key.
-    let dh_pub = g.secure_pow_mod(&d_a, &p);
+    // dh_pub_a is the public Diffie-Hellman key.
+    let dh_pub_a = g.secure_pow_mod(&d_a, &p);
 
     // Get time of in microseconds since Unix epoch.
     // TODO: Remove hardcoded time when done.
@@ -151,29 +153,21 @@ fn main() -> Result<(), Box<dyn Error>> {
         "tod": t.to_string()
     });
 
-    println!("key = {}", s_a.to_string());
-    println!("tod = {}", t.to_string());
-
     // Convert m1_a from JSON to BigUint.
     let m1_a_int = Integer::from_digits(m1_a.to_string().as_bytes(), Order::MsfBe);
 
     // Session key 1 is message 1 encrypted with Bob's public RSA key.
-    let ses_1 = rsa::encrypt(&m1_a_int, &rsa_e, &rsa_pub);
+    let ses_1 = encrypt(&m1_a_int, &rsa_e, &rsa_pub);
 
-    // Compute hash of m1_a for the session key hash.
+    // Compute hash of m1_a for the session key hash and convert to integer.
     let m1_a_hash = Sha3_256::digest(m1_a.to_string().as_bytes());
-
-    // Convert hash to large integer.
     let m1_a_hash_int = Integer::from_digits(m1_a_hash.as_slice(), Order::MsfBe);
 
     // Construct message 1 part b.
     let m1_b = json!({
         "hash_sess_key": m1_a_hash_int.to_string(),
-        "diffie_pub_k": dh_pub.to_string()
+        "diffie_pub_k": dh_pub_a.to_string()
     });
-
-    println!("hash_sess_key = {}", m1_a_hash_int.to_string());
-    println!("diffie_pub_k = {}", dh_pub.to_string());
 
     // Compute hash of m1_b.
     let m1_b_hash = Sha3_256::digest(m1_b.to_string().as_bytes());
@@ -182,7 +176,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let m1_b_hash_int = Integer::from_digits(m1_b_hash.as_slice(), Order::MsfBe);
 
     // Compute signature by signing the hash of m1_b.
-    let sig_1 = rsa::sign(&m1_b_hash_int, &rsa_priv, &rsa_pub);
+    let sig_1 = sign(&m1_b_hash_int, &rsa_priv, &rsa_pub);
 
     // Construct message 1 part c.
     let m1_c = json!({
@@ -198,7 +192,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         "sess_key": ses_1.to_string()
     });
 
-    println!("sess_key = {}", ses_1.to_string());
+    // Sanity check.
+    // TODO: Remove check when finished.
+    println!("key = {}", s_a);
+    println!("tod = {}", t);
+    println!("hash_sess_key = {}", m1_a_hash_int);
+    println!("diffie_pub_k = {}", dh_pub_a);
 
     // Format supplied options into address.
     let addr = format!("{}:{}", opt.ip, opt.port);

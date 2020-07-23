@@ -1,11 +1,14 @@
 use rug::{rand::RandState, integer::Order, Integer};
 use serde_json::{json, Value};
+use sha3::{Digest, Sha3_256};
 use std::error::Error;
 use std::net::TcpListener;
 use structopt::StructOpt;
 
 mod protocol;
+
 mod rsa;
+use rsa::{decrypt, verify};
 
 #[derive(Debug, StructOpt)]
 #[structopt(
@@ -18,6 +21,9 @@ struct Opt {
 
     #[structopt(short, long, default_value = "8123")]
     port: u16,
+
+    #[structopt(short, long)]
+    test: bool
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -126,21 +132,70 @@ fn main() -> Result<(), Box<dyn Error>> {
     let m1: Value = serde_json::from_str(std::str::from_utf8(&m1_data)?)?;
 
     // Unpack session key 1.
-    println!("sess_key = {}", m1["sess_key"]);
-
     let ses1 = Integer::from_str_radix(m1["sess_key"].as_str().unwrap(), 10)?;
 
     // Unpack message 1 part a.
-    let m1_a_int = rsa::decrypt(&ses1, &rsa_priv, &rsa_pub);
+    let m1_a_int = decrypt(&ses1, &rsa_priv, &rsa_pub);
     let m1_a_bytes = m1_a_int.to_digits::<u8>(Order::MsfBe);
-    let m1a: Value = serde_json::from_str(std::str::from_utf8(m1_a_bytes.as_slice())?)?;
+    let m1_a: Value = serde_json::from_str(std::str::from_utf8(m1_a_bytes.as_slice())?)?;
 
-    println!("key = {}", m1a["key"]);
-    println!("tod = {}", m1a["tod"]);
+    // Unpack message 1 part c.
+    // TODO: Finish porting Simon.
+    let m1_c = &m1["payload"];
 
+    // Unpack message 1 part b.
+    let m1_b = &m1_c["agreement_data"];
 
-    // Construct and send second message.
-    let m2 = json!({ "msg": "this is the response" });
+    // Compute hash of m1_b and convert to integer.
+    let m1_b_hash = Sha3_256::digest(m1_b.to_string().as_bytes());
+    let m1_b_hash_int = Integer::from_digits(m1_b_hash.as_slice(), Order::MsfBe);
+
+    // Verify signature 1.
+    let sig_1 = Integer::from_str_radix(m1_c["signature"].as_str().unwrap(), 10)?;
+    assert_eq!(verify(&sig_1, &rsa_e, &rsa_pub), m1_b_hash_int);
+
+    // Compute hash of m1_a for the session key hash and convert to integer.
+    let m1_a_hash = Sha3_256::digest(m1_a.to_string().as_bytes());
+    let m1_a_hash_int = Integer::from_digits(m1_a_hash.as_slice(), Order::MsfBe);
+
+    // Verify session key hash.
+    let h = Integer::from_str_radix(m1_b["hash_sess_key"].as_str().unwrap(), 10)?;
+    assert_eq!(h, m1_a_hash_int);
+
+    // Unpack Diffie-Hellman public key.
+    let dh_pub_a = Integer::from_str_radix(m1_b["diffie_pub_k"].as_str().unwrap(), 10)?;
+
+    // Sanity check.
+    // TODO: Remove check when finished.
+    println!("key = {}", m1_a["key"]);
+    println!("tod = {}", m1_a["tod"]);
+    println!("hash_sess_key = {}", m1_a_hash_int);
+    println!("diffie_pub_k = {}", dh_pub_a);
+
+    // Start up random state (seed for now).
+    // TODO: Remove seeding when done.
+    let mut rng = RandState::new();
+
+    if !opt.test {
+        let seed = Integer::from(1234);
+        rng.seed(&seed);
+    }
+
+    // s_b is a 256-bit random number.
+    let s_b = Integer::from(Integer::random_bits(256, &mut rng));
+
+    // d_b is a 4096-bit random number.
+    let d_b = Integer::from(Integer::random_bits(4096, &mut rng));
+
+    // dh_pub_a is the public Diffie-Hellman key.
+    // TODO: Remove underscore since it'll be used.
+    let _dh_pub_b = g.secure_pow_mod(&d_b, &p);
+
+    // Construct message 2 part a.
+    let m2 = json!({
+        "key": s_b.to_string()
+    });
+
     protocol::send_data(&mut stream, m2.to_string().as_bytes())?;
 
     // Receive and convert data into third message.

@@ -30,12 +30,12 @@ pub fn sign(m: &Integer, d: &Integer, n: &Integer) -> Integer {
     m.clone().secure_pow_mod(d, n)
 }
 
-///// RSA verification using BigUints.
-/////
-///// # Arguments
-///// * `s` - The "signature" to verify.
-///// * `e` - The RSA public exponent.
-///// * `n` - The RSA public modulus.
-///// pub fn verify(s: &BigUint, e: &BigUint, n: &BigUint) -> BigUint {
-//     s.modpow(e, n)
-// }
+/// RSA verification using BigUints.
+///
+/// # Arguments
+/// * `s` - The "signature" to verify.
+/// * `e` - The RSA public exponent.
+/// * `n` - The RSA public modulus.
+pub fn verify(s: &Integer, e: &Integer, n: &Integer) -> Integer {
+    s.clone().secure_pow_mod(e, n)
+}
