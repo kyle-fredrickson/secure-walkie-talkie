@@ -149,7 +149,7 @@ def compute_request(my_diffie_pub, my_rsa_decrypt, their_rsa_encrypt):
     if(sess_key_num >= their_rsa_encrypt.modulus):
         raise Exception("session key too large")
 
-    enc_sess_key = their_rsa_encrypt.encrypt(sess_key_num)
+    enc_sess_key = base64.b64encode(str(their_rsa_encrypt.encrypt(sess_key_num)).encode()).decode("utf-8")
     hash_sess_key = int(hash.sha3_256(sess_key_str.encode()), 16)
 
     agree = {"hash_sess_key": str(hash_sess_key), "diffie_pub_k": str(my_diffie_pub)}
@@ -179,7 +179,7 @@ def compute_response(my_diffie_pub, my_rsa_decrypt, their_rsa_encrypt, tod):
     if(sess_key_num >= their_rsa_encrypt.modulus):
         raise Exception("session key too large")
 
-    enc_sess_key = their_rsa_encrypt.encrypt(sess_key_num)
+    enc_sess_key = base64.b64encode(str(their_rsa_encrypt.encrypt(sess_key_num)).encode()).decode("utf-8")
     hash_sess_key = int(hash.sha3_256(sess_key_str.encode()), 16)
 
     # Agreement
@@ -215,7 +215,7 @@ def compute_header_data(data, my_diffie, their_diffie_pub, tod):
 ### Decrypt Messages ###
 
 def decrypt_request(js, my_rsa_decrypt, contacts):
-    enc_sess_key = int(js["sess_key"], 10)
+    enc_sess_key = int(base64.b64decode(js["sess_key"]).decode("utf-8"), 10)
 
     dec_sess_key = my_rsa_decrypt.encrypt(enc_sess_key)
     sess_key_str = rsa.num_to_ascii(dec_sess_key)
@@ -259,7 +259,7 @@ def decrypt_request(js, my_rsa_decrypt, contacts):
     return (int(payload["agreement_data"]["diffie_pub_k"], 10), tod, name)
 
 def decrypt_response(js, my_rsa_decrypt, their_rsa_encrypt, tod):
-    enc_sess_key = int(js["sess_key"], 10)
+    enc_sess_key = int(base64.b64decode(js["sess_key"]).decode("utf-8"), 10)
 
     dec_sess_key = my_rsa_decrypt.encrypt(enc_sess_key)
 

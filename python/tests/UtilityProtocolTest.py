@@ -7,7 +7,7 @@ import os
 import subprocess
 import sys
 
-sys.path.append("src")
+sys.path.append("../src")
 
 import DHKE as d
 import RSA as rsa
@@ -15,7 +15,7 @@ import UtilityConfig as uc
 import UtilityProtocol as p
 
 def main():
-    bob_config = uc.UtilityConfig("config/Bob.json")
+    bob_config = uc.UtilityConfig("../config/Bob.json")
 
     bob_rsa_n = bob_config.rsa_n
     bob_rsa_pri = bob_config.rsa_pri
@@ -27,7 +27,7 @@ def main():
     bob_diffie = d.DHKE(bob_config.dh_p, bob_config.dh_g)
     bob_diffie_pub = bob_diffie.X
 
-    alice_config = uc.UtilityConfig("config/Alice.json")
+    alice_config = uc.UtilityConfig("../config/Alice.json")
 
     alice_rsa_n = alice_config.rsa_n
     alice_rsa_pri = alice_config.rsa_pri
