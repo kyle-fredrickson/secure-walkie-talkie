@@ -1,0 +1,33 @@
+{
+    "big_int_to_b64_string":
+    [
+        {
+            "input": 1234567890,
+            "output": "MTIzNDU2Nzg5MA=="
+        },
+        {
+            "input": 0,
+            "output": "MA=="
+        }
+    ],
+
+    "ascii_to_integer":
+    [
+        {
+            "input": "a",
+            "output": 97
+        },
+        {
+            "input": "aa",
+            "output": 24929
+        }
+    ],
+
+    "bytes_to_integer":
+    [
+        {
+            "input": "a",
+            "output": 97
+        }
+    ]
+}

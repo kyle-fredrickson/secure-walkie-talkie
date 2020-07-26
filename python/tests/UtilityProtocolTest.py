@@ -41,6 +41,7 @@ def main():
 
     # Bob sends request to Alice
     (b_request_enc, b_tod) = p.compute_request(bob_diffie_pub, bob_rsa_decrypt, alice_rsa_encrypt)
+    #print(b_request_enc)
 
     # Alice receives a request from someone
     (a_bob_diffie_pub, a_tod, name) = p.decrypt_request(b_request_enc, alice_rsa_decrypt, alice_config.contacts)
@@ -52,6 +53,7 @@ def main():
 
     # Alice sends a response to Bob
     a_response_enc = p.compute_response(alice_diffie_pub, alice_rsa_decrypt, a_their_rsa_encrypt, a_tod)
+    #print(a_response_enc)
 
     # Bob recieves a response from Alice
     b_alice_diffie_pub = p.decrypt_response(a_response_enc, bob_rsa_decrypt, alice_rsa_encrypt, b_tod)
@@ -65,8 +67,10 @@ def main():
     print("Shared secret is in common:", bob_ss == alice_ss)
 
     # Bob computes Header/Data
-    message = b"Well bon jour world! I don't know where I'm at!"
+    message = b"Hello, world!"
     b_header, b_message_enc = p.compute_header_data(message, bob_diffie, b_alice_diffie_pub, b_tod)
+    #print(b_header)
+    #print(b_message_enc)
 
     # Alice verifies/decrypts data
     a_message = p.decrypt_data(b_header["tag"], b_message_enc, alice_diffie, a_bob_diffie_pub, a_tod)

@@ -47,16 +47,3 @@ class RSA:
     """
     def encrypt(self, pt):
         return pow(pt, self.key, self.modulus)
-
-def ascii_to_num(s):
-    bytes = s.encode()
-    r = 0x0
-
-    for i in bytes:
-        r = r << 8
-        r = r + i
-
-    return r
-
-def num_to_ascii(n):
-    return bytes.fromhex(hex(n)[2:]).decode('ascii')

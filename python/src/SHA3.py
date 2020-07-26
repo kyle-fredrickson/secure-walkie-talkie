@@ -1,9 +1,4 @@
-import numpy as np
 import hashlib
-
-import UtilityBit as ub
-
-# Get my sha3_good
 
 def sha3_256(b):
     return hashlib.sha3_256(b).hexdigest()
@@ -16,6 +11,9 @@ def sha3_512_split(b):
     x = hash[:len(hash)//2]
     y = hash[len(hash)//2:]
     return (x,y)
+
+def main():
+    print(sha3_256(b"hi"))
 
 
 """
@@ -146,3 +144,6 @@ class SHA3_256:
 
         return r & 0x1
 """
+
+if __name__ == "__main__":
+    main()

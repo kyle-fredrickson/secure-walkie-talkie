@@ -12,6 +12,7 @@ import DHKE as dh
 import RSA as rsa
 import SHA3 as hash
 import UtilityBit as ub
+import UtilityTransforms as ut
 
 ### MESSAGE TYPES ###
 
@@ -143,13 +144,13 @@ def compute_request(my_diffie_pub, my_rsa_decrypt, their_rsa_encrypt):
     tod = int(datetime.now().timestamp()) * 1000000
     sess_key = {"key": str(key), "ToD": str(tod)}
     sess_key_str = json.dumps(sess_key)
-    sess_key_num = rsa.ascii_to_num(sess_key_str)
+    sess_key_num = ut.ascii_to_bint(sess_key_str)
 
 
     if(sess_key_num >= their_rsa_encrypt.modulus):
         raise Exception("session key too large")
 
-    enc_sess_key = base64.b64encode(str(their_rsa_encrypt.encrypt(sess_key_num)).encode()).decode("utf-8")
+    enc_sess_key = ut.bint_to_b64_string(their_rsa_encrypt.encrypt(sess_key_num))
     hash_sess_key = int(hash.sha3_256(sess_key_str.encode()), 16)
 
     agree = {"hash_sess_key": str(hash_sess_key), "diffie_pub_k": str(my_diffie_pub)}
@@ -163,7 +164,7 @@ def compute_request(my_diffie_pub, my_rsa_decrypt, their_rsa_encrypt):
 
     c = cm.CounterMode(hex(key)[2:])
     enc_payload = c.encrypt(payload_str.encode(), tod)
-    enc_payload_str = base64.b64encode(enc_payload).decode("utf-8")
+    enc_payload_str = ut.bytes_to_b64_string(enc_payload)
 
     dhke_json = {"payload": enc_payload_str, "sess_key": str(enc_sess_key)}
 
@@ -174,12 +175,12 @@ def compute_response(my_diffie_pub, my_rsa_decrypt, their_rsa_encrypt, tod):
 
     sess_key = key
     sess_key_str = str(sess_key)
-    sess_key_num = rsa.ascii_to_num(sess_key_str)
+    sess_key_num = ut.ascii_to_bint(sess_key_str)
 
     if(sess_key_num >= their_rsa_encrypt.modulus):
         raise Exception("session key too large")
 
-    enc_sess_key = base64.b64encode(str(their_rsa_encrypt.encrypt(sess_key_num)).encode()).decode("utf-8")
+    enc_sess_key = ut.bint_to_b64_string(their_rsa_encrypt.encrypt(sess_key_num))
     hash_sess_key = int(hash.sha3_256(sess_key_str.encode()), 16)
 
     # Agreement
@@ -194,7 +195,7 @@ def compute_response(my_diffie_pub, my_rsa_decrypt, their_rsa_encrypt, tod):
 
     c = cm.CounterMode(hex(key)[2:])
     enc_payload = c.encrypt(payload_str.encode(), tod)
-    enc_payload_str = base64.b64encode(enc_payload).decode("utf-8")
+    enc_payload_str = ut.bytes_to_b64_string(enc_payload)
 
     dhke_json = {"payload": enc_payload_str, "sess_key": str(enc_sess_key)}
 
@@ -215,10 +216,10 @@ def compute_header_data(data, my_diffie, their_diffie_pub, tod):
 ### Decrypt Messages ###
 
 def decrypt_request(js, my_rsa_decrypt, contacts):
-    enc_sess_key = int(base64.b64decode(js["sess_key"]).decode("utf-8"), 10)
+    enc_sess_key = ut.b64_string_to_bint(js["sess_key"])
 
     dec_sess_key = my_rsa_decrypt.encrypt(enc_sess_key)
-    sess_key_str = rsa.num_to_ascii(dec_sess_key)
+    sess_key_str = ut.bint_to_ascii(dec_sess_key)
     sess_key = json.loads(sess_key_str)
     key = int(sess_key["key"], 10)
     tod = int(sess_key["ToD"], 10)
@@ -227,7 +228,7 @@ def decrypt_request(js, my_rsa_decrypt, contacts):
 
     #decrypt payload
 
-    enc_payload = base64.b64decode(js["payload"])
+    enc_payload = ut.b64_string_to_bytes(js["payload"])
     c = cm.CounterMode(hex(key)[2:])
     payload = json.loads(c.decrypt(enc_payload, tod).decode("utf-8")) # there's an error here occasionally
 
@@ -259,18 +260,18 @@ def decrypt_request(js, my_rsa_decrypt, contacts):
     return (int(payload["agreement_data"]["diffie_pub_k"], 10), tod, name)
 
 def decrypt_response(js, my_rsa_decrypt, their_rsa_encrypt, tod):
-    enc_sess_key = int(base64.b64decode(js["sess_key"]).decode("utf-8"), 10)
+    enc_sess_key = ut.b64_string_to_bint(js["sess_key"])
 
     dec_sess_key = my_rsa_decrypt.encrypt(enc_sess_key)
 
-    sess_key_str = rsa.num_to_ascii(dec_sess_key)
+    sess_key_str = ut.bint_to_ascii(dec_sess_key)
     key = int(sess_key_str, 10)
 
     hash_sess_key = hash.sha3_256(sess_key_str.encode())
 
     #decrypt payload
 
-    enc_payload = base64.b64decode(js["payload"])
+    enc_payload = ut.b64_string_to_bytes(js["payload"])
     c = cm.CounterMode(hex(key)[2:])
     payload = json.loads(c.decrypt(enc_payload, tod).decode("utf-8")) # this causes an error occasionally
 

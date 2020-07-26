@@ -48,7 +48,7 @@ class Simon128_256:
         (x, y) = Simon128_256.split(ct)
 
         for ki in reversed(self.key):
-            (x,y) = Simon128_256.decrypt_round(x,y,ki)
+            (x,y) = Simon128_256.decrypt_round(x, y, ki)
 
 
         return (x << 64) + y
