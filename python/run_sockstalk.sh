@@ -1,0 +1,1 @@
+python3 main.py --login Bob --text --socks localhost 9050 --talk "Hello, this is a test." Alice

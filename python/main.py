@@ -9,6 +9,7 @@ sys.path.append("src")
 import Audio as aud
 import CounterMode as cm
 from TcpListener import TcpListener
+from SOCKSTalker import SOCKSTalker
 import SHA3 as hash
 from TcpTalker import TcpTalker
 import UtilityConfig as uc
@@ -70,14 +71,14 @@ def listen(config, text):
         data = l.listen()
 
         if text:
-            print(data.decode("utf-8"))
+            print("Received:", data.decode("utf-8"))
         else:
             AUDIO.play(data)
 
     except Exception as e:
         print(str(e))
 
-def talk(file, name, config, text):
+def tcptalk(file, name, config, text):
     try:
         t = TcpTalker(config, name)
 
@@ -89,7 +90,20 @@ def talk(file, name, config, text):
         t.talk(data)
     except Exception as e:
         print(str(e))
-        #print("Error: sending failed")
+
+def sockstalk(file, name, config, text, proxy_ip, proxy_port):
+    try:
+        t = SOCKSTalker(config, name, proxy_ip, proxy_port)
+
+        if text:
+            data = file.encode()
+        else:
+            data = AUDIO.read(file)
+
+        t.talk(data)
+        print("Sent.")
+    except Exception as e:
+        print(str(e))
 
 def record(n, file):
     try:
@@ -117,20 +131,13 @@ def listcontacts(config):
     except:
         print("Error: could not display contacts")
 
-def openconfig():
-    try:
-        print("Opening configuration:", os.path.join(os.getcwd(), CONFIG_PATH))
-        subprocess.run(['open', CONFIG_PATH], check=True)
-    except:
-        print("Error: could not open config")
-
 def main():
     parser = argparse.ArgumentParser(description="Securely send voice over TCP!")
 
     parser.add_argument("-d", "--debug", action = "store_true", help="use in debug mode with plaintext configs")
     parser.add_argument("--login", metavar = ("NAME"), nargs = 1, help = "Load NAME using PASSWORD")
     parser.add_argument("--text", action = "store_true", help="process text")
-
+    parser.add_argument("-s", "--socks", metavar = ("PROXY_IP", "PROXY_PORT"), nargs = 2, help = "use the socks proxy at (PROXY_IP, PROXY_PORT)")
 
     group = parser.add_mutually_exclusive_group()
 
@@ -153,7 +160,11 @@ def main():
             listen(config, args.text)
         elif args.talk:
             print("Sending...\n")
-            talk(args.talk[0], args.talk[1], config, args.text)
+
+            if args.socks:
+                sockstalk(args.talk[0], args.talk[1], config, args.text, args.socks[0], int(args.socks[1], 10))
+            else:
+                tcptalk(args.talk[0], args.talk[1], config, args.text)
         elif args.record:
             print("Recording...\n")
             record(int(args.record[0]), args.record[1])
@@ -183,5 +194,5 @@ if __name__ == "__main__":
     with open("config/Bob.encrypted", "wb") as outf:
         outf.write(ct)"""
 
-    
+
     main()

@@ -28,6 +28,10 @@
         {
             "input": "a",
             "output": 97
+        },
+        {
+            "input": "aa",
+            "output": 24929
         }
     ]
 }

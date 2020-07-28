@@ -12,14 +12,12 @@ class SocksProxy(StreamRequestHandler):
     def handle(self):
         header = self.connection.recv(2)
         version, num_methods = struct.unpack("!BB", header)
-        print(version, num_methods)
 
         methods = self.get_available_methods(num_methods)
 
         self.connection.sendall(struct.pack("!BB", SOCKS_VERSION, 0))
 
         version, cmd, _, address_type = struct.unpack("!BBBB", self.connection.recv(4))
-        print(version, cmd, _, address_type)
 
         if address_type == 1:  # IPv4
             address = socket.inet_ntoa(self.connection.recv(4))
@@ -65,23 +63,19 @@ class SocksProxy(StreamRequestHandler):
         return struct.pack("!BBBBIH", SOCKS_VERSION, error_number, 0, address_type, 0, 0)
 
     def exchange_loop(self, client, remote):
-        r, w, e = select.select([client, remote], [], [])
+        while True:
+            r, w, e = select.select([client, remote], [], [])
 
-        if client in r:
-            data = client.recv(4096)
-            client.send(data)
-            print(1, data)
-            if remote.send(data) <= 0:
-                return
+            if client in r:
+                data = client.recv(4096)
+                if remote.send(data) <= 0:
+                    return
 
-        if remote in r:
-            data = remote.recv(4096)
-            remote.send(data)
-            print(2, data)
-            if client.send(data) <= 0:
-                return
+            if remote in r:
+                data = remote.recv(4096)
+                if client.send(data) <= 0:
+                    return
 
 if __name__ == '__main__':
-    server = ThreadingTCPServer(('localhost', 9050), SocksProxy)
-    print(1)
-    server.handle_request()
+    with ThreadingTCPServer(('127.0.0.1', 9050), SocksProxy) as server:
+        server.serve_forever()

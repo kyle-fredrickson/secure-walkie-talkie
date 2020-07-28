@@ -37,6 +37,9 @@ class TcpListener:
             raise Exception("unexpected response type")
 
         data = conn.recv(length)
+        while len(data) < length:
+            data = data + conn.recv(length)
+
         (their_diffie_pub, tod, name) = up.process_request(data, self.my_rsa_decrypt, self.config.contacts)
         self.set_name(name)
 
@@ -54,6 +57,9 @@ class TcpListener:
             raise Exception("unexpected response type")
 
         data = conn.recv(length)
+        while len(data) < length:
+            data = data + conn.recv(length)
+
         tag = up.process_tag(data)
 
         return tag

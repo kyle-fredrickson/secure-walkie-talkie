@@ -41,8 +41,6 @@ def test(js):
 
     return True
 
-
-
 def main():
     with open("../test_vectors.json") as file:
         js = json.load(file)
@@ -54,7 +52,6 @@ def main():
         print("Test passed.")
     except:
         print("Test failed.")
-
 
 if __name__ == "__main__":
     main()
