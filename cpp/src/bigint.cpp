@@ -332,7 +332,8 @@ static const uint8_t base64_decoding[256] = {
 };
 
 std::string BigInt::to_base64(const BigInt& n) {
-  std::vector<uint8_t> data = to_bytes(n);
+  std::string num_str = n.str_in_base(10);
+  std::vector<uint8_t> data(num_str.begin(), num_str.end());
   std::string encoded(base64_encoded_length(data.size()), '=');
 
   const size_t moduli[3] = { 0, 2, 1 };
@@ -379,7 +380,7 @@ BigInt BigInt::from_base64(const std::string& data) {
     if (j < decoded_length) decoded[j++] = (t >> 0)  & 255;
   }
 
-  return from_bytes(decoded);
+  return BigInt(std::string(decoded.begin(), decoded.end()));
 }
 
 uint64_t BigInt::to_uint64(const BigInt& n) {
