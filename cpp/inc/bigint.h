@@ -175,14 +175,4 @@ inline BigInt operator^(const T& lhs, const BigInt& rhs) {
   return BigInt(lhs) ^= rhs;
 }
 
-template<class T>
-inline BigInt operator<<(const T& lhs, const BigInt& rhs) {
-  return BigInt(lhs) <<= rhs;
-}
-
-template<class T>
-inline BigInt operator>>(const T& lhs, const BigInt& rhs) {
-  return BigInt(lhs) >>= rhs;
-}
-
 #endif
