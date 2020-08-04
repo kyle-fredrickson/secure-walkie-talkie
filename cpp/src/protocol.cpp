@@ -4,8 +4,10 @@
 #include "rsa.h"
 #include "sha3.h"
 #include "util.h"
-#include <iostream>
-#include <iomanip>
+#include <fstream>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 JSON protocol::create_request(const BigInt& alice_rsa_d, const BigInt&
     alice_rsa_n, const BigInt& bob_rsa_e, const BigInt& bob_rsa_n, const BigInt&
@@ -319,4 +321,146 @@ bool protocol::verify_response(const JSON& response, const BigInt& alice_rsa_d,
   k2 = BigInt::from_bytes(digest_k2);
 
   return true;
+}
+
+void protocol::encrypt_audio(std::string ptfname, std::string ctfname, BigInt&
+    tod, BigInt& k1) {
+  // Step 1: Get length of unencrypted audio file.
+  struct stat statbuf;
+  stat(ptfname.c_str(), &statbuf);
+
+  // Step 2: Create container for unencrypted audio.
+  u8 *pt = new u8[statbuf.st_size]();
+  CHECK(pt, "Failed to allocate memory for unencrypted data.");
+
+  // Step 3: Create container for encrypted audio.
+  u8 *ct = new u8[statbuf.st_size]();
+  CHECK(ct, "Failed to allocate memory for encrypted data.");
+
+  // Step 4: Open file stream for unencrypted audio.
+  std::ifstream ptaudio(ptfname, std::ios::binary);
+  CHECK(ptaudio, "Failed to open audio file.");
+
+  // Step 5: Open file stream for encrypted audio.
+  std::ofstream ctaudio(ctfname, std::ios::binary | std::ios::trunc);
+  CHECK(ctaudio, "Failed to open encrypted audio file.");
+
+  // Step 6: Convert k1 to bytes.
+  std::vector<u8> bytes_k1 = BigInt::to_bytes(k1);
+
+  // Step 7: Read in unencrypted audio, encrypt, write out encrypted audio.
+  ptaudio.read((char *)pt, statbuf.st_size);
+  ctr_encrypt(BigInt::to_uint64(tod), bytes_k1.data(), pt, ct, statbuf.st_size);
+  ctaudio.write((char *)ct, statbuf.st_size);
+
+  // Step 8: Clean up.
+  ptaudio.close();
+  ctaudio.close();
+  delete[] pt;
+  delete[] ct;
+  return;
+}
+
+void protocol::decrypt_audio(std::string ctfname, std::string pftname, BigInt&
+    tod, BigInt& k1) {
+  // Step 1: Get length of encrypted audio file.
+  struct stat statbuf;
+  stat(ctfname.c_str(), &statbuf);
+
+  // Step 2: Create container for encrypted audio.
+  u8 *ct = new u8[statbuf.st_size]();
+  CHECK(ct, "Failed to allocate memory for encrypted data.");
+
+  // Step 3: Create container for decrypted audio.
+  u8 *pt = new u8[statbuf.st_size]();
+  CHECK(pt, "Failed to allocate memory for decrypted data.");
+
+  // Step 4: Open file stream for encrypted audio.
+  std::ifstream ctaudio(ctfname, std::ios::binary);
+  CHECK(ctaudio, "Failed to open encrypted audio file.");
+
+  // Step 5: Open file stream for decrypted audio.
+  std::ofstream ptaudio(pftname, std::ios::binary | std::ios::trunc);
+  CHECK(ptaudio, "Failed to open decrypted audio file.");
+
+  // Step 6: Convert k1 to bytes.
+  std::vector<u8> bytes_k1 = BigInt::to_bytes(k1);
+
+  // Step 7: Read in encrypted audio, encrypt, write out decrypted audio.
+  ctaudio.read((char *)ct, statbuf.st_size);
+  ctr_decrypt(BigInt::to_uint64(tod), bytes_k1.data(), ct, pt, statbuf.st_size);
+  ptaudio.write((char *)pt, statbuf.st_size);
+
+  // Step 8: Clean up.
+  ctaudio.close();
+  ptaudio.close();
+  delete[] ct;
+  delete[] pt;
+  return;
+}
+
+JSON protocol::create_tag(std::string audiofname, const BigInt& k2) {
+  // Step 1: Get length of encrypted audio file.
+  struct stat statbuf;
+  stat(audiofname.c_str(), &statbuf);
+
+  // Step 2: Create container for encrypted audio.
+  std::vector<u8> audio(statbuf.st_size);
+
+  // Step 3: Open file stream for encrypted audio.
+  std::ifstream audiofile(audiofname, std::ios::binary);
+  CHECK(audiofile, "Failed to open encrypted audio file.");
+
+  // Step 4: Read in encrypted audio.
+  audiofile.read((char *)audio.data(), statbuf.st_size);
+
+  // Step 6: Prepend encrypted audio with k2.
+  std::vector<u8> bytes_k2 = BigInt::to_bytes(k2);
+  bytes_k2.insert(bytes_k2.end(), audio.begin(), audio.end());
+
+  // Step 5: Hash the prepended, encrypted audio, then convert to a BigInt.
+  std::vector<u8> digest_audio;
+  SHA3::absorb(bytes_k2);
+  SHA3::squeeze(digest_audio);
+  BigInt tag_num = BigInt::from_bytes(digest_audio);
+
+  // Step 6: Create JSON for the base64 encoded tag.
+  JSON tag = {
+    { "tag", BigInt::to_base64(tag_num) }
+  };
+
+  return tag;
+}
+
+bool protocol::verify_tag(const JSON& tag, std::string audiofname, const BigInt&
+    k2) {
+  // Step 1: Get length of encrypted audio file.
+  struct stat statbuf;
+  stat(audiofname.c_str(), &statbuf);
+
+  // Step 2: Create container for encrypted audio.
+  std::vector<u8> audio(statbuf.st_size);
+
+  // Step 3: Open file stream for encrypted audio.
+  std::ifstream audiofile(audiofname, std::ios::binary);
+  CHECK(audiofile, "Failed to open encrypted audio file.");
+
+  // Step 4: Read in encrypted audio.
+  audiofile.read((char *)audio.data(), statbuf.st_size);
+
+  // Step 6: Prepend encrypted audio with k2.
+  std::vector<u8> bytes_k2 = BigInt::to_bytes(k2);
+  bytes_k2.insert(bytes_k2.end(), audio.begin(), audio.end());
+
+  // Step 5: Hash the prepended, encrypted audio, then convert to a BigInt.
+  std::vector<u8> digest_audio;
+  SHA3::absorb(bytes_k2);
+  SHA3::squeeze(digest_audio);
+  BigInt tag_num = BigInt::from_bytes(digest_audio);
+
+  // Step 6: Unpack the tag Alice sent.
+  BigInt alice_tag_num = BigInt::from_base64(tag["tag"].get<std::string>());
+
+  // Step 7: Return the result of comparing computed and received tag.
+  return tag_num == alice_tag_num;
 }
