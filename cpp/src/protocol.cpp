@@ -21,7 +21,7 @@ JSON protocol::create_request(const BigInt& alice_rsa_d, const BigInt&
   // Step 3: Package the key and time of day into JSON.
   JSON sess_key = {
     { "key", key.str_in_base(10) },
-    { "tod", tod.str_in_base(10) }
+    { "ToD", tod.str_in_base(10) }
   };
 
   // Step 4: Convert sess_key into a BigInt.
@@ -100,7 +100,7 @@ bool protocol::verify_request(const JSON& request, const BigInt& bob_rsa_d,
   // Step 3: Unpack key and ToD after converting sess_key_num back into JSON.
   JSON sess_key = JSON::parse(BigInt::to_string(sess_key_num));
   BigInt key = BigInt(sess_key["key"].get<std::string>());
-  tod = BigInt(sess_key["tod"].get<std::string>());
+  tod = BigInt(sess_key["ToD"].get<std::string>());
 
   // Step 4: Convert sess_key_num to bytes, hash it, then convert hash to BigInt.
   std::vector<u8> bytes_sess_key = BigInt::to_bytes(sess_key_num);
