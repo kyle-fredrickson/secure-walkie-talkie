@@ -1,22 +1,16 @@
-#include "audio.h"
-#include "being.h"
 #include "bigint.h"
-#include "ctr.h"
-#include "database.h"
-#include "rsa.h"
-#include "sha3.h"
+#include "protocol.h"
 #include "server.h"
 #include "util.h"
-#include <chrono>
 #include <cstdio>
 #include <fstream>
 #include <iomanip>
-#include <vector>
+#include <string>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#define OPTIONS   "hvp:"
+#define OPTIONS   "hvt:l:p:"
 
 void print_usage(char *program) {
   std::cerr <<
@@ -38,6 +32,8 @@ void print_usage(char *program) {
 int main(int argc, char **argv) {
   int opt = 0;
   int port = 8123;
+  std::string talker_file = "config/Eugene.json";
+  std::string listener_file = "config/Eunice.json";
 
   while ((opt = getopt(argc, argv, OPTIONS)) != -1) {
     switch (opt) {
@@ -46,6 +42,12 @@ int main(int argc, char **argv) {
       return 0;
     case 'v':
       verbose = true;
+      break;
+    case 'l':
+      listener_file = optarg;
+      break;
+    case 't':
+      talker_file = optarg;
       break;
     case 'p':
       port = std::stoi(std::string(optarg));
@@ -56,17 +58,50 @@ int main(int argc, char **argv) {
     }
   }
 
+  // Open up filestreams for talker and listener credentials.
+  std::ifstream talker(talker_file);
+  std::ifstream listener(listener_file);
+
+  // Give Alice the talker credentials.
+  JSON alice;
+  talker >> alice;
+
+  // Give Bob the listener credentials.
+  JSON bob;
+  listener >> bob;
+
+  // The following is required to create the response:
+  //  - Bob's private RSA key (RSA d, RSA n)
+  //  - Alice's public RSA key (RSA e, RSA n)
+  //  - Diffie-Hellman prime and generator (DH p, DH, g)
+  //  - Bob's contacts.
+  BigInt bob_rsa_d = BigInt(bob["rsa_d"].get<std::string>());
+  BigInt bob_rsa_n = BigInt(bob["rsa_n"].get<std::string>());
+  BigInt alice_rsa_e = BigInt(alice["rsa_e"].get<std::string>());
+  BigInt alice_rsa_n = BigInt(alice["rsa_n"].get<std::string>());
+  BigInt dh_p = BigInt(bob["dh_p"].get<std::string>());
+  BigInt dh_g = BigInt(bob["dh_g"].get<std::string>());
+  JSON bob_contacts = bob["contacts"].get<JSON>();
+
   // Attempt communication with client.
   try {
     TCPServer server(port);
     LOG("Server started on port: " << port);
 
-    // Receive packet 1.
+    // Receive request.
     JSON request;
     server.recv_request(request);
-    std::cout << std::setw(2) << request << std::endl;
-    LOG("Received packet 1");
+    LOG("Received request:\n" << std::setw(2) << request);
 
+    // Verify the request, pass back retained data by reference.
+    JSON retained;
+
+    if (!protocol::verify_request(request, bob_rsa_d, bob_rsa_n, bob_contacts, retained)) {
+      std::cerr << "Error: invalid request" << std::endl;
+      return 1;
+    }
+
+    LOG("Request verified.");
 
     // BigInt m1c = BigInt::from_base64(m1["payload"].get<std::string>());
     // BigInt ses1 = BigInt::from_base64(m1["sess_key"].get<std::string>());

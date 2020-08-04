@@ -1,7 +1,9 @@
 #include "bigint.h"
 #include "client.h"
 #include "protocol.h"
+#include "rsa.h"
 #include "util.h"
+#include <cassert>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -85,8 +87,14 @@ int main(int argc, char **argv) {
   BigInt dh_p = BigInt(alice["dh_p"].get<std::string>());
   BigInt dh_g = BigInt(alice["dh_g"].get<std::string>());
 
+  JSON contacts = alice["contacts"].get<JSON>();
+  for (auto& contact : contacts) {
+    std::cout << std::setw(2) << contact << std::endl;
+  }
+
   // Create the request.
-  JSON request = protocol::request(alice_rsa_d, alice_rsa_n, bob_rsa_e, bob_rsa_n, dh_p, dh_g);
+  JSON request = protocol::create_request(alice_rsa_d, alice_rsa_n, bob_rsa_e,
+      bob_rsa_n, dh_p, dh_g);
 
   // Attempt communication with server.
   try {
@@ -95,8 +103,7 @@ int main(int argc, char **argv) {
 
     // Send the request.
     client.send_request(request);
-    std::cout << std::setw(2) << request << std::endl;
-    LOG("Sent packet 1 to: " << bob["name"]);
+    LOG("Sent request:\n" << std::setw(2) << request);
   } catch (TCPSocketException& err) {
     std::cerr << "Client error: " << err.what() << std::endl;
   }
