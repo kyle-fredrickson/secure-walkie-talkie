@@ -87,23 +87,43 @@ int main(int argc, char **argv) {
   BigInt dh_p = BigInt(alice["dh_p"].get<std::string>());
   BigInt dh_g = BigInt(alice["dh_g"].get<std::string>());
 
-  JSON contacts = alice["contacts"].get<JSON>();
-  for (auto& contact : contacts) {
-    std::cout << std::setw(2) << contact << std::endl;
-  }
+  // The following are retained when creating the request:
+  //  - ToD
+  //  - Alice's private Diffie-Hellman key
+  BigInt tod;
+  BigInt alice_dh_pri;
 
-  // Create the request.
+  // Create the request; ToD and Alice's Diffie-Hellman private key are retained.
   JSON request = protocol::create_request(alice_rsa_d, alice_rsa_n, bob_rsa_e,
-      bob_rsa_n, dh_p, dh_g);
+      bob_rsa_n, dh_g, dh_p, tod, alice_dh_pri);
 
-  // Attempt communication with server.
   try {
+    // Attempt communication with server.
     TCPClient client(ip, port);
     LOG("Connected to: " << ip << " on port: " << port);
 
     // Send the request.
     client.send_request(request);
     LOG("Sent request:\n" << std::setw(2) << request);
+
+    // Receive the response.
+    JSON response;
+    client.recv_response(response);
+    LOG("Received response:\n" << std::setw(2) << response);
+
+    // Two hash keys are retained from creating the response.
+    BigInt k1;
+    BigInt k2;
+
+    // Verify the response.
+    if (!protocol::verify_response(response, alice_rsa_d, alice_rsa_n,
+          bob_rsa_e, bob_rsa_n, dh_p, alice_dh_pri, tod, k1, k2)) {
+      std::cerr << "Error: invalid response" << std::endl;
+      return 1;
+    }
+
+    std::cout << "k1 = " << k1 << std::endl;
+    std::cout << "k2 = " << k2 << std::endl;
   } catch (TCPSocketException& err) {
     std::cerr << "Client error: " << err.what() << std::endl;
   }

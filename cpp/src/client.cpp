@@ -26,37 +26,24 @@ void TCPClient::send_type_length(const char type, const size_t length) {
 
   std::string tmp = typelength.str();
   TCPSocket::send(sockfd, (u8 *)tmp.c_str(), tmp.length());
-
-  LOGNN(typelength.str());
-
   return;
 }
 
 void TCPClient::send_request(const JSON& request) {
-  LOGNN("m1 = ");
-
   std::string tmp = request.dump();
 
   send_type_length(REQUEST, tmp.length());
 
   TCPSocket::send(sockfd, (u8 *)tmp.c_str(), tmp.length());
-
-  LOG(request.dump());
-
   return;
 }
 
 void TCPClient::send_hmac(const JSON& hmac) {
-  LOGNN("m3 = ");
-
   std::string tmp = hmac.dump();
 
   send_type_length(HMAC, tmp.length());
 
   TCPSocket::send(sockfd, (u8 *)tmp.c_str(), tmp.length());
-
-  LOG(hmac.dump());
-
   return;
 }
 
@@ -77,8 +64,6 @@ void TCPClient::send_audio(const std::string fname) {
   audiofile.read((char *)audio, statbuf.st_size);
   TCPSocket::send(sockfd, audio, statbuf.st_size);
 
-  LOG("");
-
   audiofile.close();
   delete[] audio;
   return;
@@ -88,12 +73,8 @@ void TCPClient::recv_type_length(char& type, size_t& length) {
   char type_[2] = { 0 };
   TCPSocket::recv(sockfd, (u8 *)&type_, 1);
 
-  LOGNN(std::string(type_));
-
   char length_[9] = { 0 };
   TCPSocket::recv(sockfd, (u8 *)length_, 8);
-
-  LOGNN(std::string(length_));
 
   type = type_[0];
 
@@ -108,8 +89,6 @@ void TCPClient::recv_type_length(char& type, size_t& length) {
 }
 
 void TCPClient::recv_response(JSON& response) {
-  LOGNN("m2 = ");
-
   char type;
   size_t length;
   recv_type_length(type, length);
@@ -123,8 +102,6 @@ void TCPClient::recv_response(JSON& response) {
     std::cerr << "JSON error: " << err.what() << std::endl;
     exit(EXIT_FAILURE);
   }
-
-  LOG(response.dump());
 
   delete[] value;
   return;

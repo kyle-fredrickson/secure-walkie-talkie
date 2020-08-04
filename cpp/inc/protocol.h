@@ -8,14 +8,21 @@
 namespace protocol {
   JSON create_request(const BigInt& alice_rsa_d, const BigInt& alice_rsa_n, const
       BigInt& bob_rsa_e, const BigInt& bob_rsa_n, const BigInt& dh_g, const
-      BigInt& dh_p);
+      BigInt& dh_p, BigInt& tod, BigInt& alice_dh_pri);
 
   bool verify_request(const JSON& request, const BigInt& bob_rsa_d, const
-      BigInt& bob_rsa_n, const JSON& contacts, JSON& retained);
+      BigInt& bob_rsa_n, const JSON& contacts, BigInt& tod, BigInt&
+      alice_dh_pub, BigInt& alice_rsa_e, BigInt& alice_rsa_n);
 
   JSON create_response(const BigInt& bob_rsa_d, const BigInt& bob_rsa_n,
-      const BigInt& alice_rsa_e, const BigInt& alice_rsa_n, const BigInt& dh_g,
-      const BigInt& dh_p, const BigInt& tod);
+      const BigInt& alice_rsa_e, const BigInt& alice_rsa_n, const BigInt&
+      alice_dh_pub, const BigInt& dh_g, const BigInt& dh_p, const BigInt& tod,
+      BigInt& k1, BigInt& k2);
+
+  bool verify_response(const JSON& response, const BigInt& alice_rsa_d,
+      const BigInt& alice_rsa_n, const BigInt& bob_rsa_e, const BigInt&
+      bob_rsa_n, const BigInt& dh_p, const BigInt& alice_dh_pri, const BigInt&
+      tod, BigInt& k1, BigInt& k2);
 }
 
 #endif

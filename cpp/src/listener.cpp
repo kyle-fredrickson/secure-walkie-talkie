@@ -70,15 +70,12 @@ int main(int argc, char **argv) {
   JSON bob;
   listener >> bob;
 
-  // The following is required to create the response:
+  // The following is required to verify the request:
   //  - Bob's private RSA key (RSA d, RSA n)
-  //  - Alice's public RSA key (RSA e, RSA n)
   //  - Diffie-Hellman prime and generator (DH p, DH, g)
-  //  - Bob's contacts.
+  //  - Bob's contacts
   BigInt bob_rsa_d = BigInt(bob["rsa_d"].get<std::string>());
   BigInt bob_rsa_n = BigInt(bob["rsa_n"].get<std::string>());
-  BigInt alice_rsa_e = BigInt(alice["rsa_e"].get<std::string>());
-  BigInt alice_rsa_n = BigInt(alice["rsa_n"].get<std::string>());
   BigInt dh_p = BigInt(bob["dh_p"].get<std::string>());
   BigInt dh_g = BigInt(bob["dh_g"].get<std::string>());
   JSON bob_contacts = bob["contacts"].get<JSON>();
@@ -93,15 +90,38 @@ int main(int argc, char **argv) {
     server.recv_request(request);
     LOG("Received request:\n" << std::setw(2) << request);
 
-    // Verify the request, pass back retained data by reference.
-    JSON retained;
+    // The following are retained from verifying the request:
+    //  - ToD
+    //  - Alice's public Diffie-Hellman key
+    //  - Alice's public RSA key (RSA e, RSA n)
+    BigInt tod;
+    BigInt alice_dh_pub;
+    BigInt alice_rsa_e;
+    BigInt alice_rsa_n;
 
-    if (!protocol::verify_request(request, bob_rsa_d, bob_rsa_n, bob_contacts, retained)) {
+    // Verify the request.
+    if (!protocol::verify_request(request, bob_rsa_d, bob_rsa_n, bob_contacts,
+          tod, alice_dh_pub, alice_rsa_e, alice_rsa_n)) {
       std::cerr << "Error: invalid request" << std::endl;
       return 1;
     }
 
     LOG("Request verified.");
+
+    // Two hash keys are retained from creating the response.
+    BigInt k1;
+    BigInt k2;
+
+    // Create the response.
+    JSON response = protocol::create_response(bob_rsa_d, bob_rsa_n, alice_rsa_e,
+        alice_rsa_n, alice_dh_pub, dh_g, dh_p, tod, k1, k2);
+
+    // Send the response.
+    server.send_response(response);
+    LOG("Sent response:\n" << std::setw(2) << response);
+
+    std::cout << "k1 = " << k1 << std::endl;
+    std::cout << "k2 = " << k2 << std::endl;
 
     // BigInt m1c = BigInt::from_base64(m1["payload"].get<std::string>());
     // BigInt ses1 = BigInt::from_base64(m1["sess_key"].get<std::string>());

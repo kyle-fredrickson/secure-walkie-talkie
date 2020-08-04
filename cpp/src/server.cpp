@@ -31,23 +31,15 @@ void TCPServer::send_type_length(const char type, const size_t length) {
 
   std::string tmp = typelength.str();
   TCPSocket::send(conn.sockfd, (u8 *)tmp.c_str(), tmp.length());
-
-  LOGNN(typelength.str());
-
   return;
 }
 
 void TCPServer::send_response(const JSON& response) {
-  LOGNN("m2 = ");
-
   std::string tmp = response.dump();
 
   send_type_length(RESPONSE, tmp.length());
 
   TCPSocket::send(conn.sockfd, (u8 *)tmp.c_str(), tmp.length());
-
-  LOG(response.dump());
-
   return;
 }
 
@@ -55,12 +47,8 @@ void TCPServer::recv_type_length(char& type, size_t& length) {
   char type_[2] = { 0 };
   TCPSocket::recv(conn.sockfd, (u8 *)&type_, 1);
 
-  LOGNN(std::string(type_));
-
   char length_[9] = { 0 };
   TCPSocket::recv(conn.sockfd, (u8 *)length_, 8);
-
-  LOGNN(std::string(length_));
 
   type = type_[0];
 
@@ -75,8 +63,6 @@ void TCPServer::recv_type_length(char& type, size_t& length) {
 }
 
 void TCPServer::recv_request(JSON& request) {
-  LOGNN("m1 = ");
-
   char type;
   size_t length;
   recv_type_length(type, length);
@@ -91,15 +77,11 @@ void TCPServer::recv_request(JSON& request) {
     exit(EXIT_FAILURE);
   }
 
-  LOG(request.dump());
-
   delete[] value;
   return;
 }
 
 void TCPServer::recv_hmac(JSON& hmac) {
-  LOGNN("m3 = ");
-
   char type;
   size_t length;
   recv_type_length(type, length);
@@ -113,8 +95,6 @@ void TCPServer::recv_hmac(JSON& hmac) {
     std::cerr << "JSON error: " << err.what() << std::endl;
     exit(EXIT_FAILURE);
   }
-
-  LOG(hmac.dump());
 
   delete[] value;
   return;
@@ -134,8 +114,6 @@ void TCPServer::recv_audio(const std::string fname) {
   CHECK(audiofile, "Failed to open audio file.");
 
   audiofile.write((char *)audio, length);
-
-  LOG("");
 
   audiofile.close();
   delete[] audio;
