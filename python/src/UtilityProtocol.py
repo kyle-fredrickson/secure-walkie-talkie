@@ -63,11 +63,11 @@ def get_shared_secret(my_diffie, their_diffie_pub):
     return hash.sha3_256(ss)
 
 def get_keys(ss):
-    m1 = bytes([1]) + ss.encode()
-    m2 = bytes([2]) + ss.encode()
+    m1 = bytes([1]) + ss
+    m2 = bytes([2]) + ss
 
-    k1 = hash.sha3_256(m1)
-    k2 = hash.sha3_256(m2)
+    k1 = hex(ut.bytes_to_bint(hash.sha3_256(m1)))[2:]
+    k2 = hex(ut.bytes_to_bint(hash.sha3_256(m2)))[2:]
 
     return (k1, k2)
 
@@ -75,7 +75,7 @@ def get_keys(ss):
 
 def get_request(my_diffie_pub, my_rsa_decrypt, their_rsa_encrypt):
     (request, tod) = compute_request(my_diffie_pub, my_rsa_decrypt, their_rsa_encrypt)
-    request = json.dumps(request)
+    request = json.dumps(request, separators=(',', ':'))
 
     length = get_length(request)
 
@@ -83,7 +83,7 @@ def get_request(my_diffie_pub, my_rsa_decrypt, their_rsa_encrypt):
 
 def get_response(my_diffie_pub, my_rsa_decrypt, their_rsa_encrypt, tod):
     response = compute_response(my_diffie_pub, my_rsa_decrypt, their_rsa_encrypt, tod)
-    response = json.dumps(response)
+    response = json.dumps(response, separators=(',', ':'))
 
     length = get_length(response)
 
@@ -92,7 +92,7 @@ def get_response(my_diffie_pub, my_rsa_decrypt, their_rsa_encrypt, tod):
 def get_header_data(data, my_diffie, their_diffie_pub, tod):
     (header, data) = compute_header_data(data, my_diffie, their_diffie_pub, tod)
 
-    header = json.dumps(header)
+    header = json.dumps(header, separators=(',', ':'))
 
     header_length = get_length(header)
     data_length = get_length(data)
@@ -139,11 +139,11 @@ def process_data(tag, enc_data, my_diffie, their_diffie_pub, tod):
 ### Compute Messages ###
 
 def compute_request(my_diffie_pub, my_rsa_decrypt, their_rsa_encrypt):
-    key = int(generate_random_key(), 16)
+    key = ut.bytes_to_bint(generate_random_key())
 
     tod = int(datetime.now().timestamp()) * 1000000
     sess_key = {"key": str(key), "ToD": str(tod)}
-    sess_key_str = json.dumps(sess_key)
+    sess_key_str = json.dumps(sess_key, separators=(',', ':'))
     sess_key_num = ut.ascii_to_bint(sess_key_str)
 
 
@@ -151,16 +151,16 @@ def compute_request(my_diffie_pub, my_rsa_decrypt, their_rsa_encrypt):
         raise Exception("session key too large")
 
     enc_sess_key = ut.bint_to_b64_string(their_rsa_encrypt.encrypt(sess_key_num))
-    hash_sess_key = int(hash.sha3_256(sess_key_str.encode()), 16)
+    hash_sess_key = ut.bytes_to_bint(hash.sha3_256(sess_key_str.encode()))
 
     agree = {"hash_sess_key": str(hash_sess_key), "diffie_pub_k": str(my_diffie_pub)}
-    agree_str = json.dumps(agree)
+    agree_str = json.dumps(agree, separators=(',', ':'))
 
-    hash_agree = int(hash.sha3_256(agree_str.encode()), 16)
+    hash_agree = ut.bytes_to_bint(hash.sha3_256(agree_str.encode()))
 
     signature = my_rsa_decrypt.encrypt(hash_agree)
     payload = {"agreement_data": agree, "signature": str(signature)}
-    payload_str = json.dumps(payload)
+    payload_str = json.dumps(payload, separators=(',', ':'))
 
     c = cm.CounterMode(hex(key)[2:])
     enc_payload = c.encrypt(payload_str.encode(), tod)
@@ -171,7 +171,7 @@ def compute_request(my_diffie_pub, my_rsa_decrypt, their_rsa_encrypt):
     return (dhke_json, tod)
 
 def compute_response(my_diffie_pub, my_rsa_decrypt, their_rsa_encrypt, tod):
-    key = int(generate_random_key(), 16)
+    key = ut.bytes_to_bint(generate_random_key())
 
     sess_key = key
     sess_key_str = str(sess_key)
@@ -181,17 +181,17 @@ def compute_response(my_diffie_pub, my_rsa_decrypt, their_rsa_encrypt, tod):
         raise Exception("session key too large")
 
     enc_sess_key = ut.bint_to_b64_string(their_rsa_encrypt.encrypt(sess_key_num))
-    hash_sess_key = int(hash.sha3_256(sess_key_str.encode()), 16)
+    hash_sess_key = ut.bytes_to_bint(hash.sha3_256(sess_key_str.encode()))
 
     # Agreement
     agree = {"hash_sess_key": str(hash_sess_key), "diffie_pub_k": str(my_diffie_pub)}
-    agree_str = json.dumps(agree)
+    agree_str = json.dumps(agree, separators=(',', ':'))
 
-    hash_agree = int(hash.sha3_256(agree_str.encode()), 16)
+    hash_agree = ut.bytes_to_bint(hash.sha3_256(agree_str.encode()))
 
     signature = my_rsa_decrypt.encrypt(hash_agree)
     payload = {"agreement_data": agree, "signature": str(signature)}
-    payload_str = json.dumps(payload)
+    payload_str = json.dumps(payload, separators=(',', ':'))
 
     c = cm.CounterMode(hex(key)[2:])
     enc_payload = c.encrypt(payload_str.encode(), tod)
@@ -224,7 +224,7 @@ def decrypt_request(js, my_rsa_decrypt, contacts):
     key = int(sess_key["key"], 10)
     tod = int(sess_key["ToD"], 10)
 
-    hash_sess_key = hash.sha3_256(sess_key_str.encode())
+    hash_sess_key = ut.bytes_to_bint(hash.sha3_256(sess_key_str.encode()))
 
     #decrypt payload
 
@@ -232,15 +232,15 @@ def decrypt_request(js, my_rsa_decrypt, contacts):
     c = cm.CounterMode(hex(key)[2:])
     payload = json.loads(c.decrypt(enc_payload, tod).decode("utf-8")) # there's an error here occasionally
 
-    claimed_hash_sess_key = hex(int(payload["agreement_data"]["hash_sess_key"], 10))[2:]
+    claimed_hash_sess_key = int(payload["agreement_data"]["hash_sess_key"], 10)
 
     if claimed_hash_sess_key != hash_sess_key:
         raise Exception("failed to verify session key")
 
     # Verify Signature
-    agree_str = json.dumps(payload["agreement_data"])
+    agree_str = json.dumps(payload["agreement_data"], separators=(',', ':'))
 
-    hash_agree = hash.sha3_256(agree_str.encode())
+    hash_agree = ut.bytes_to_bint(hash.sha3_256(agree_str.encode()))
     sig = int(payload["signature"], 10)
 
     name = None
@@ -250,7 +250,7 @@ def decrypt_request(js, my_rsa_decrypt, contacts):
         rsa_pub = int(contact["rsa_pub"], 10)
         rsa_encrypt = rsa.RSA(rsa_n, rsa_pub)
 
-        if rsa_encrypt.encrypt(sig) == int(hash_agree, 16):
+        if rsa_encrypt.encrypt(sig) == hash_agree:
             name = contact["name"]
             break
 
@@ -267,7 +267,7 @@ def decrypt_response(js, my_rsa_decrypt, their_rsa_encrypt, tod):
     sess_key_str = ut.bint_to_ascii(dec_sess_key)
     key = int(sess_key_str, 10)
 
-    hash_sess_key = hash.sha3_256(sess_key_str.encode())
+    hash_sess_key = ut.bytes_to_bint(hash.sha3_256(sess_key_str.encode()))
 
     #decrypt payload
 
@@ -275,18 +275,18 @@ def decrypt_response(js, my_rsa_decrypt, their_rsa_encrypt, tod):
     c = cm.CounterMode(hex(key)[2:])
     payload = json.loads(c.decrypt(enc_payload, tod).decode("utf-8")) # this causes an error occasionally
 
-    claimed_hash_sess_key = hex(int(payload["agreement_data"]["hash_sess_key"], 10))[2:]
+    claimed_hash_sess_key = int(payload["agreement_data"]["hash_sess_key"], 10)
 
     if claimed_hash_sess_key != hash_sess_key:
         raise Exception("failed to verify session key")
 
     # Verify Signature
-    agree_str = json.dumps(payload["agreement_data"])
+    agree_str = json.dumps(payload["agreement_data"], separators=(',', ':'))
 
-    hash_agree = hash.sha3_256(agree_str.encode())
+    hash_agree = ut.bytes_to_bint(hash.sha3_256(agree_str.encode()))
     sig = int(payload["signature"], 10)
 
-    if their_rsa_encrypt.encrypt(sig) != int(hash_agree, 16):
+    if their_rsa_encrypt.encrypt(sig) != hash_agree:
         raise Exception("Failed to verify signature.")
 
     return int(payload["agreement_data"]["diffie_pub_k"], 10)

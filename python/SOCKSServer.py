@@ -1,3 +1,5 @@
+# This server is from https://github.com/rushter/socks5/blob/master/server.py
+
 from socketserver import ThreadingMixIn, TCPServer, StreamRequestHandler
 import struct
 import socket

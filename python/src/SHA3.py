@@ -1,15 +1,15 @@
 import hashlib
 
 def sha3_256(b):
-    return hashlib.sha3_256(b).hexdigest()
+    return hashlib.sha3_256(b).digest()
 
 def sha3_512(b):
-    return hashlib.sha3_512(b).hexdigest()
+    return hashlib.sha3_512(b).digest()
 
 def sha3_512_split(b):
     hash = sha3_512(b)
-    x = hash[:len(hash)//2]
-    y = hash[len(hash)//2:]
+    x = hash[:len(hash) // 2]
+    y = hash[len(hash) // 2:]
     return (x,y)
 
 def main():

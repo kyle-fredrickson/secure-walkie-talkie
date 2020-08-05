@@ -88,6 +88,7 @@ def tcptalk(file, name, config, text):
             data = AUDIO.read(file)
 
         t.talk(data)
+        print("Sent.")
     except Exception as e:
         print(str(e))
 
