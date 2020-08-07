@@ -4,6 +4,7 @@
 #include <cinttypes>
 #include <cstdlib>
 #include <iostream>
+#include <nlohmann/json.hpp>
 
 #define SERVER_PORT   8123
 #define NONCE         1234
@@ -16,6 +17,8 @@
 #define RL(x, y)  (((x) << (y)) | (x >> (64 - (y))))
 #define RR(x, y)  (((x) >> (y)) | ((x) << (64 - (y))))
 
+using JSON = nlohmann::json;
+
 typedef int8_t    d8;
 typedef int16_t   d16;
 typedef int32_t   d32;
@@ -25,6 +28,7 @@ typedef uint8_t   u8;
 typedef uint16_t  u16;
 typedef uint32_t  u32;
 typedef uint64_t  u64;
+
 
 extern bool verbose;
 

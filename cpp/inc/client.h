@@ -1,7 +1,5 @@
 #include "socket.h"
-#include <nlohmann/json.hpp>
-
-using JSON = nlohmann::json;
+#include "util.h"
 
 class TCPClient : public TCPSocket {
   public:
