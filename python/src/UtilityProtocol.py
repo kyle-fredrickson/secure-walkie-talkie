@@ -208,7 +208,7 @@ def compute_header_data(data, my_diffie, their_diffie_pub, tod):
     encrypted_data = c.encrypt(data, tod)
 
     m = k2.encode() + encrypted_data
-    h = hash.sha3_256(m)
+    h = ut.bytes_to_b64_string(hash.sha3_256(m))
     header = {"tag" : h}
 
     return (header, encrypted_data)
@@ -293,7 +293,7 @@ def decrypt_response(js, my_rsa_decrypt, their_rsa_encrypt, tod):
 
 def validate_data(tag, enc_data, k):
     m = k.encode() + enc_data
-    h = hash.sha3_256(m)
+    h = ut.bytes_to_b64_string(hash.sha3_256(m))
 
     return tag == h
 
